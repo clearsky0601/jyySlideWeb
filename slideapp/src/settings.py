@@ -41,7 +41,7 @@ def Init(target_filepath):
     global filename, filepath, output_foldname, output_filename, output_foldpath, output_filepath, static_foldpath, images_foldpath
     filename = os.path.basename(target_filepath)
     filepath = os.path.abspath(target_filepath)
-    output_foldpath = os.path.join(filepath.split(filename)[0], output_foldname)
+    output_foldpath = os.path.join(os.path.dirname(filepath), output_foldname)
     output_filepath = os.path.join(output_foldpath, output_filename)
 
     static_foldpath = os.path.join(output_foldpath, "static")

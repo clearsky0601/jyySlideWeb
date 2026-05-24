@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import shutil
 
 import yaml
@@ -9,6 +10,39 @@ from pyquery import PyQuery  # type: ignore
 from .util import *
 
 from . import settings as st
+
+
+_FENCE_RE = re.compile(r"^\s*(```+|~~~+)")
+
+
+def _split_outside_code(content: str, separator: str) -> list:
+    """Like content.split(separator) but matches inside fenced code blocks are ignored.
+
+    `separator` must be of the form "\\n<token>\\n"; a line equaling <token> is a
+    boundary only if a previous and following line exist, matching str.split semantics.
+    """
+    sep_token = separator.strip("\n")
+    lines = content.split("\n")
+    in_code = False
+    fence_char = None
+    chunks: list = [[]]
+    for i, line in enumerate(lines):
+        m = _FENCE_RE.match(line)
+        if not in_code and m:
+            in_code = True
+            fence_char = m.group(1)[0]
+            chunks[-1].append(line)
+            continue
+        if in_code and m and m.group(1)[0] == fence_char:
+            in_code = False
+            fence_char = None
+            chunks[-1].append(line)
+            continue
+        if (not in_code) and line == sep_token and 0 < i < len(lines) - 1:
+            chunks.append([])
+            continue
+        chunks[-1].append(line)
+    return ["\n".join(c) for c in chunks]
 
 
 def process_html_elements(before_html):
@@ -46,7 +80,7 @@ def process_terminal(semi_html):
 
 
 def vertical_to_fragment(vertical: str) -> str:
-    fragments = vertical.split(st.op_index_fragment)
+    fragments = _split_outside_code(vertical, st.op_index_fragment)
 
     fragment_list = [md_util.md_to_html(fragments[0])]
     template = "<div class='fragment' data-fragment-index='{}'>{}</div>"
@@ -58,7 +92,7 @@ def vertical_to_fragment(vertical: str) -> str:
 
 
 def vertical_to_animate(vertical: str) -> str:
-    animates = vertical.split(st.op_animate_section)
+    animates = _split_outside_code(vertical, st.op_animate_section)
 
     animate_list = list()
     template = "{}"
@@ -70,7 +104,7 @@ def vertical_to_animate(vertical: str) -> str:
 
 
 def horizontal_to_vertical(horizontal: str) -> str:
-    verticals_divided_by_second = horizontal.split(st.op_second_section)
+    verticals_divided_by_second = _split_outside_code(horizontal, st.op_second_section)
 
     sections = list()
     template_second = "<section>{}</section>"
@@ -78,22 +112,31 @@ def horizontal_to_vertical(horizontal: str) -> str:
     for vertical_divided_by_second in verticals_divided_by_second:
         if vertical_divided_by_second.isspace():
             continue
-        if st.op_animate_section in vertical_divided_by_second:
-            verticals_divided_by_animate = vertical_divided_by_second.split(
-                st.op_animate_section
+        animate_parts = _split_outside_code(
+            vertical_divided_by_second, st.op_animate_section
+        )
+        if len(animate_parts) > 1:
+            template_first = "<section data-auto-animate>{}</section>"
+            template_more = (
+                '<section data-auto-animate data-visibility="uncounted">{}</section>'
             )
-            template_animate = "<section data-auto-animate>{}</section>"
-            for vertical_divided_by_animate in verticals_divided_by_animate:
+            first_emitted = False
+            for vertical_divided_by_animate in animate_parts:
                 if vertical_divided_by_animate.isspace():
                     continue
+                tmpl = template_first if not first_emitted else template_more
+                first_emitted = True
                 sections.append(
-                    template_animate.format(
+                    tmpl.format(
                         process_terminal(
                             vertical_to_animate(vertical_divided_by_animate)
                         )
                     )
                 )
-        elif st.op_index_fragment in vertical_divided_by_second:
+        elif (
+            len(_split_outside_code(vertical_divided_by_second, st.op_index_fragment))
+            > 1
+        ):
             sections.append(
                 template_second.format(
                     process_terminal(vertical_to_fragment(vertical_divided_by_second))
@@ -110,7 +153,7 @@ def horizontal_to_vertical(horizontal: str) -> str:
 
 
 def md_divide_to_horizontal(content: str):
-    horizontals = content.split(st.op_first_section)
+    horizontals = _split_outside_code(content, st.op_first_section)
 
     sections = list()
     template = "<section>{}</section>"
@@ -158,8 +201,22 @@ def process_front_matter():
 
     try:
         data = json.loads(front_matter)
-    except Exception as e:
-        data = yaml.load(front_matter, Loader=yaml.SafeLoader)
+    except Exception:
+        try:
+            data = yaml.safe_load(front_matter)
+        except Exception as e:
+            raise ValueError(
+                "front-matter must be valid JSON or YAML: {}".format(e)
+            ) from e
+
+    if (
+        not isinstance(data, dict)
+        or "author" not in data
+        or "departments" not in data
+    ):
+        raise ValueError(
+            "front-matter must define both 'author' and 'departments' fields"
+        )
 
     for department in data["departments"]:
         new_name, err = file_util.get_image_to_target(
@@ -175,10 +232,16 @@ def process_front_matter():
 
 
 def process_static():
-    if os.path.exists(st.output_foldpath) is True:
-        shutil.rmtree(st.output_foldpath)
-    os.mkdir(st.output_foldpath)
-    shutil.copytree(st.static_path, st.static_foldpath)
+    if os.path.exists(st.output_foldpath) is False:
+        os.makedirs(st.output_foldpath)
+    if os.path.exists(st.static_foldpath) is False:
+        shutil.copytree(st.static_path, st.static_foldpath)
+    else:
+        if os.path.exists(st.images_foldpath):
+            shutil.rmtree(st.images_foldpath)
+        shutil.copytree(
+            os.path.join(st.static_path, st.images_foldname), st.images_foldpath
+        )
 
 
 def converter(MDfilepath):
@@ -192,7 +255,7 @@ def converter(MDfilepath):
     process_front_matter()  # 解析markdown中的front_matter and render author_template(will change content)
     process_image_link()  # 处理Markdown文本中的图片链接, 将它们get到静态文件, 同时修改content
 
-    st.title = "".join(st.filename.split(".")[:-1])
+    st.title = os.path.splitext(st.filename)[0]
     st.body = get_body(st.content)
 
     st.template = st.template.render(title=st.title, body=st.body)

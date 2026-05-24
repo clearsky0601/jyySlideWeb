@@ -1,4 +1,5 @@
 import os, shutil, uuid
+from urllib.parse import urlparse
 from typing import Optional, Tuple
 from . import str_util, net_util
 
@@ -38,8 +39,9 @@ def get_image_to_target(
     link: str, from_filepath: str, target_foldpath: str
 ) -> Tuple[str, bool]:
     # 对于from_filepath(请使用其绝对地址)中的图床链接link, 它可能是url、绝对地址或相对地址, 我们会get它然后重命名并放到target_foldpath下, 并返回重命名后的名字
-    # 这里对图片类型的判断是通过link的后缀名, 有些图片的url的末尾不是类型名, 就会有bug
-    name = uuid.uuid4().hex + "." + link.split(".")[-1]
+    ext_source = urlparse(link).path if str_util.is_url(link) else link
+    ext = os.path.splitext(ext_source)[1].lstrip(".") or "png"
+    name = uuid.uuid4().hex + "." + ext
     if str_util.is_url(link):
         pass
     else:
@@ -50,7 +52,11 @@ def get_image_to_target(
             pass
 
     if str_util.is_url(link):
-        net_util.down_image(link, os.path.join(target_foldpath, name))
+        try:
+            net_util.down_image(link, os.path.join(target_foldpath, name))
+        except Exception as e:
+            print("Failed to download image: {} ({})".format(link, e))
+            return "", True
     else:
         if os.path.exists(link) is False:
             print("The path is not exists: ", link)

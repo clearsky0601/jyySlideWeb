@@ -1,0 +1,11 @@
+/media/
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+db.sqlite3
+staticfiles/
+*.log
+*.pid
+.DS_Store
+.idea/

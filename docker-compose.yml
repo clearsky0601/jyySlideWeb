@@ -1,0 +1,20 @@
+services:
+  jyy_slide_web:
+    image: mona233/jyy_slide_web:latest
+    container_name: jyy_slide_web
+    ports:
+      - "10001:10001"
+    volumes:
+      - type: bind
+        source: ./media
+        target: /app/media
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./db.sqlite3
+        target: /app/db.sqlite3
+        bind:
+          create_host_path: false
+    restart: always
+    environment:
+      - CSRF_TRUSTED_ORIGINS=https://localhost,https://yourdomain.com  # 定义CSRF信任域

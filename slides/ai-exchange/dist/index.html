@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <link href="./static/css/base.css" rel="stylesheet">
+    <link href="./static/css/tailwind.min.css" rel="stylesheet">
+    <link href="./static/css/fonts.css" rel="stylesheet">
+    <title> AI交流分享 </title>
+    <!-- browser favicon -->
+    <link rel="shortcut icon" href="./static/img/favicon.png">
+    <style>
+        .font-sans {
+            font-family: 'Lato', 'SimHei', 'STHeiti', 'SimHei', 'Serif';
+        }
+
+        .font-serif {
+            font-family: 'Source Serif Pro', 'Songti SC', 'SimSun', 'Serif', serif;
+        }
+    </style>
+    <!-- <link rel="stylesheet" href="https://jyywiki.cn/static/katex/katex.min.css">
+    <script defer src="https://jyywiki.cn/static/katex/katex.min.js"></script> -->
+    <link rel="stylesheet" href="./static/katex/katex.min.css">
+    <script defer src="./static/katex/katex.min.js"></script>
+    <!-- <script defer src="https://jyywiki.cn/static/katex/auto-render.min.js"
+        integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05"
+        crossorigin="anonymous"></script> -->
+    <script defer src="./static/katex/auto-render.min.js"></script>
+    
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            renderMathInElement(document.body, {
+                // customised options
+                // &#8226; auto-render specific keys, e.g.:
+                delimiters: [
+                    {left: '$$', right: '$$', display: true},
+                    {left: '$', right: '$', display: false},
+                    {left: '\\(', right: '\\)', display: false},
+                    {left: '\\[', right: '\\]', display: true}
+                ],
+                // &#8226; rendering keys, e.g.:
+                throwOnError: false
+            });
+        });
+    </script>
+
+    <link rel="stylesheet" href="./static/reveal/reveal.css">
+    <link rel="stylesheet" href="./static/reveal/theme/simple.css" id="theme">
+    <link rel="stylesheet" href="./static/jyy/jyy.css">
+
+</head>
+
+<body class="d-flex flex-column h-100">
+
+<div class="reveal">
+    <div class="slides">
+        <section><section><div class="center middle"><div style="width:100%"><div><h1 id="ai" class="text-2xl mt-2 font-sans">AI 交流分享会</h1>
+<p class="font-serif my-1">location: 215<br/>
+author: Tommy Song</p>
+<p class="font-serif my-1">[附上一张二维码]</p></div></div></div></section><section><div><h2 id="_1" class="text-xl mt-2 pb-2 font-sans">今天想让大家带走什么？</h2>
+<ul class="list-disc font-serif">
+<li class="ml-8">知道 <strong>Chatbot</strong> 和 <strong>Agent</strong> 的区别</li>
+<li class="ml-8">会用 Claude Code / Codex 做一些真实任务</li>
+<li class="ml-8">知道什么时候该开新 session、压缩 context、使用 memory</li>
+<li class="ml-8">能把 AI 接入科研工作流：读文献、写笔记、做图、做实验、做 slides</li>
+<li class="ml-8">少踩几个坑：额度、上下文污染、误操作、模型选择</li>
+</ul></div></section><section><div><h2 id="outline" class="text-xl mt-2 pb-2 font-sans">Outline</h2>
+<ul class="list-disc font-serif">
+<li class="ml-8">Agentic Coding：从聊天到真正做事</li>
+<li class="ml-8">Claude Code：常用命令、模式和小技巧</li>
+<li class="ml-8">Codex：本地任务、浏览器验证、Computer Use</li>
+<li class="ml-8">AI + 科研：绘图、Slides、NotebookLM、笔记软件</li>
+<li class="ml-8">我的工具组合与主观经验</li>
+</ul></div></section></section><section><section><div class="center middle"><div style="width:100%"><div><h1 id="agentic-coding" class="text-2xl mt-2 font-sans">Agentic Coding</h1>
+<p class="font-serif my-1">从聊天到真正做事。</p></div></div></div></section><section><div><h2 id="chat-agent" class="text-xl mt-2 pb-2 font-sans">从 Chat 到 Agent</h2>
+<p class="font-serif my-1">普通聊天：</p>
+<ul class="list-disc font-serif">
+<li class="ml-8">你问一句，它答一句</li>
+<li class="ml-8">主要输出文本</li>
+<li class="ml-8">很少主动验证结果</li>
+</ul>
+<p class="font-serif my-1">Agent：</p>
+<ul class="list-disc font-serif">
+<li class="ml-8">能读文件、跑命令、调工具、改代码</li>
+<li class="ml-8">能根据结果继续下一步</li>
+<li class="ml-8">能形成 <strong>反馈循环</strong></li>
+</ul>
+<p class="font-serif my-1"><img alt="879" src="/media/uploads/ai-exchange/file-20260508170616326.png"/></p>
+<p class="font-serif my-1"><img alt="400" src="/media/uploads/ai-exchange/IMG_7951.png"/></p></div></section><section><div><h2 id="6" class="text-xl mt-2 pb-2 font-sans">先记住 6 个概念就够了</h2>
+<ul class="list-disc font-serif">
+<li class="ml-8"><strong>Token</strong>：模型处理信息和计费的基本单位</li>
+<li class="ml-8"><strong>Context</strong>：模型当前一次能看见的工作空间</li>
+<li class="ml-8"><strong>Session</strong>：一次连续工作现场</li>
+<li class="ml-8"><strong>Memory</strong>：跨 session 保留的长期信息</li>
+<li class="ml-8"><strong>MCP</strong>：让 AI 连接外部工具的协议</li>
+<li class="ml-8"><strong>Skills</strong>：按需加载的专业能力包</li>
+</ul>
+<blockquote>
+<p class="font-serif my-1">先不用背术语，关键是知道它们会影响：价格、速度、准确性和可控性。</p>
+</blockquote></div></section><section><div><h2 id="token" class="text-xl mt-2 pb-2 font-sans">Token：为什么会贵？</h2>
+<p class="font-serif my-1">模型处理文本的最小单元。</p>
+<ul class="list-disc font-serif">
+<li class="ml-8">1 token 大约等于 0.75 个英文单词，或约 1.5 个汉字</li>
+<li class="ml-8"><strong>Input Token</strong>：你输入、文件、工具结果、历史上下文</li>
+<li class="ml-8"><strong>Output Token</strong>：模型生成的内容，通常更贵</li>
+<li class="ml-8"><strong>Cache Read / Write</strong>：命中缓存后成本会明显下降</li>
+</ul>
+<blockquote>
+<p class="font-serif my-1">烧钱的本质：不是“问了几句话”，而是“塞了多少 token”。</p>
+</blockquote>
+<p class="font-serif my-1">https://platform.claude.com/docs/en/about-claude/pricing</p>
+<p class="font-serif my-1"><img alt="599" src="/media/uploads/ai-exchange/file-20260508133153719.png"/></p>
+<p class="font-serif my-1"><img alt="808" src="/media/uploads/ai-exchange/file-20260508001443342.png"/></p></div></section><section><div><h2 id="context-ai" class="text-xl mt-2 pb-2 font-sans">Context：为什么 AI 会忘、会乱？</h2>
+<p class="font-serif my-1">Context 是模型一次“看得见”的工作空间。</p>
+<ul class="list-disc font-serif">
+<li class="ml-8"><strong>Context Window</strong>：一次最多能装下多少 token</li>
+<li class="ml-8"><strong>Context Overflow</strong>：超出窗口后，早期内容可能被截断</li>
+<li class="ml-8"><strong>Context Compression</strong>：旧对话被自动压缩成摘要</li>
+<li class="ml-8"><strong>Context Pollution</strong>：无关信息太多，输出质量下降</li>
+<li class="ml-8"><strong>Context Engineering</strong>：只把真正有用的信息放进去</li>
+</ul>
+<blockquote>
+<p class="font-serif my-1">一次性灌太多材料，不一定更聪明，很多时候只是更混乱。</p>
+</blockquote>
+<p class="font-serif my-1"><img alt="441" src="/media/uploads/ai-exchange/file-20260508133827516.png"/></p>
+<p class="font-serif my-1"><img alt="476" src="/media/uploads/ai-exchange/file-20260508003804634.png"/></p></div></section><section><div><h2 id="session-memory" class="text-xl mt-2 pb-2 font-sans">Session &amp; Memory</h2>
+<p class="font-serif my-1"><strong>Session</strong> 是一次连续工作现场：</p>
+<ul class="list-disc font-serif">
+<li class="ml-8">有独立的 context window</li>
+<li class="ml-8">可以通过 <code>/resume</code> 或 session id 恢复</li>
+<li class="ml-8">适合按项目、按任务拆开</li>
+</ul>
+<p class="font-serif my-1"><strong>Memory</strong> 是跨 session 的长期信息：</p>
+<ul class="list-disc font-serif">
+<li class="ml-8">项目说明、个人偏好、常用路径</li>
+<li class="ml-8">例如 <code>CLAUDE.md</code>、<code>AGENTS.md</code>、自动 memory、笔记库</li>
+</ul>
+<blockquote>
+<p class="font-serif my-1">Context = 这次我看见了什么；Memory = 下次我还应该记得什么。</p>
+</blockquote></div></section><section><div><h2 id="mcp-skills" class="text-xl mt-2 pb-2 font-sans">MCP &amp; Skills</h2>
+<p class="font-serif my-1"><strong>MCP</strong>：Model Context Protocol</p>
+<ul class="list-disc font-serif">
+<li class="ml-8">标准化工具 / 资源调用协议</li>
+<li class="ml-8">让 Claude、Codex 等接入 GitHub、Notion、浏览器、数据库、Anki……</li>
+<li class="ml-8">可以理解成 AI 工具世界里的“接口标准”</li>
+</ul>
+<p class="font-serif my-1"><strong>Skills</strong></p>
+<ul class="list-disc font-serif">
+<li class="ml-8"><code>instruction + 资源 + 脚本</code> 的专业知识包</li>
+<li class="ml-8">不用时不占 context，用到时再加载</li>
+<li class="ml-8">例：<code>pptx</code>、<code>frontend-design</code>、<code>obsidian-markdown</code></li>
+</ul></div></section><section><div><h2 id="agent" class="text-xl mt-2 pb-2 font-sans">Agent 真正变强靠什么？</h2>
+<blockquote>
+<p class="font-serif my-1">不是只靠更长提示词，而是靠工作流。</p>
+</blockquote>
+<ul class="list-disc font-serif">
+<li class="ml-8"><strong>Feedback Loop</strong>：做一步，看结果，再调整</li>
+<li class="ml-8"><strong>Harness Engineering</strong>：给 Agent 配工具、权限、规则和外壳</li>
+<li class="ml-8"><strong>Orchestrator</strong>：把复杂任务拆解、排序、并行</li>
+<li class="ml-8"><strong>Delegation</strong>：把搜索、审查、实现交给不同 subagent</li>
+</ul></div></section><section><div><h2 id="feedback-loop" class="text-xl mt-2 pb-2 font-sans">Feedback Loop：最重要的思维</h2>
+<p class="font-serif my-1">Agent 调用工具 -&gt; 拿到结果 -&gt; 据此调整下一步。</p>
+<p class="font-serif my-1">典型例子：</p>
+<ul class="list-disc font-serif">
+<li class="ml-8">跑测试 -&gt; 失败 -&gt; 读报错 -&gt; 改代码 -&gt; 再跑</li>
+<li class="ml-8">编译论文 -&gt; 报错 -&gt; 查缺失包 -&gt; 修 LaTeX -&gt; 再编译</li>
+<li class="ml-8">打开网页 -&gt; 截图 -&gt; 发现遮挡 -&gt; 改 CSS -&gt; 再看</li>
+</ul>
+<blockquote>
+<p class="font-serif my-1">没有反馈的 Agent，只是在猜。</p>
+</blockquote></div></section><section><div><h2 id="_1" class="text-xl mt-2 pb-2 font-sans">怎么用起来？</h2>
+<ul class="list-disc font-serif">
+<li class="ml-8">选择入口：Claude Code / Codex / 其他 Agent 工具</li>
+<li class="ml-8">解决认证：账号订阅、API Key、OAuth、中转站</li>
+<li class="ml-8">控制成本：模型选择、context 管理、缓存、分任务开 session</li>
+<li class="ml-8">建立习惯：每次让 AI 真的跑一下、看一下、验证一下</li>
+</ul>
+<p class="font-serif my-1">配图：</p>
+<p class="font-serif my-1"><img alt="667" src="/media/uploads/ai-exchange/IMG_7481.png"/></p>
+<p class="font-serif my-1">推荐大家一个很有趣的短视频：</p>
+<p class="font-serif my-1">https://www.bilibili.com/video/BV15XQyBjEHc/?spm_id_from=333.337.search-card.all.click&amp;vd_source=f4ff90f6cc9f047c8f715e66ae009eb7</p></div></section><section><div><h2 id="cc-switch" class="text-xl mt-2 pb-2 font-sans">CC-Switch</h2>
+<p class="font-serif my-1">https://github.com/farion1231/cc-switch</p>
+<p class="font-serif my-1">一句话介绍：</p>
+<blockquote>
+<p class="font-serif my-1">一个跨平台的 All-in-One assistant 工具，可以统一管理 Claude Code、Codex、OpenCode、openclaw、Gemini CLI 等工具入口。</p>
+</blockquote>
+<p class="font-serif my-1">适合：</p>
+<ul class="list-disc font-serif">
+<li class="ml-8">多个模型 / 多个 provider 来回切换</li>
+<li class="ml-8">本地统一管理 API Key、Base URL、模型配置</li>
+<li class="ml-8">想快速比较不同 Agent 工具体验</li>
+</ul></div></section><section><div><h2 id="cc-switch" class="text-xl mt-2 pb-2 font-sans">配置 CC-Switch</h2>
+<p class="font-serif my-1">核心配置：</p>
+<ul class="list-disc font-serif">
+<li class="ml-8">Base URL</li>
+<li class="ml-8">API Key</li>
+<li class="ml-8">Model</li>
+<li class="ml-8">Tool / Agent 类型</li>
+</ul>
+<p class="font-serif my-1"><img alt="499" src="/media/uploads/ai-exchange/file-20260508133003455.png"/></p></div></section></section><section><section><div class="center middle"><div style="width:100%"><div><h1 id="claude-code" class="text-2xl mt-2 font-sans">Claude Code</h1>
+<p class="font-serif my-1">适合做什么？</p>
+<ul class="list-disc font-serif">
+<li class="ml-8">理解一个陌生代码库</li>
+<li class="ml-8">修改代码、跑测试、修 bug</li>
+<li class="ml-8">批量重构、写脚本、整理文档</li>
+<li class="ml-8">让 AI 在终端里形成可验证的工作流</li>
+</ul></div></div></div></section><section><div><h2 id="claude-code" class="text-xl mt-2 pb-2 font-sans">Claude Code 的常用工作姿势</h2>
+<p class="font-serif my-1">不要一上来就说“帮我改一下”。</p>
+<p class="font-serif my-1">更推荐这样：</p>
+<div class="codehilite"><pre class="bg-gray-100 overflow-x-auto rounded p-2 mb-2 mt-2"><span/><code>先读这个项目的 README、package.json 和入口文件。
+告诉我它的技术栈、启动方式、核心模块。
+先不要改代码。
+</code></pre></div>
+
+<p class="font-serif my-1">然后再说：</p>
+<div class="codehilite"><pre class="bg-gray-100 overflow-x-auto rounded p-2 mb-2 mt-2"><span/><code>现在帮我实现 xxx。
+改完后跑测试或启动服务验证。
+</code></pre></div></div></section><section><div><h2 id="claude-code" class="text-xl mt-2 pb-2 font-sans">Claude Code：上下文相关命令</h2>
+<p class="font-serif my-1">这些命令解决“对话越来越长”的问题。</p>
+<ul class="list-disc font-serif">
+<li class="ml-8"><code>/context</code>：查看当前 session 的上下文占用</li>
+<li class="ml-8"><code>/compact</code>：压缩当前对话，释放 context</li>
+<li class="ml-8"><code>/resume</code>：恢复之前的 session</li>
+<li class="ml-8"><code>claude -c</code>：命令行直接继续最近一次 session</li>
+<li class="ml-8"><code>claude -r &lt;session-id&gt;</code>：按指定 session id 恢复</li>
+</ul>
+<blockquote>
+<p class="font-serif my-1">长任务不要硬撑，该 compact 就 compact，该开新 session 就开新 session。</p>
+</blockquote></div></section><section><div><h2 id="claude-code" class="text-xl mt-2 pb-2 font-sans">Claude Code：控制方向的命令</h2>
+<p class="font-serif my-1">这些命令解决“AI 走偏了怎么办”。</p>
+<ul class="list-disc font-serif">
+<li class="ml-8"><code>/rewind</code>：回到之前某个 turn，重新走一遍</li>
+<li class="ml-8"><code>/config</code>：打开配置面板，调整权限、模型等</li>
+<li class="ml-8"><code>/model</code>：切换模型</li>
+<li class="ml-8"><code>/effort</code>：调整 reasoning budget</li>
+<li class="ml-8"><code>claude --verbose</code>：打开详细日志，排查 MCP、hook、权限问题</li>
+</ul></div></section><section><div><h2 id="claude-code" class="text-xl mt-2 pb-2 font-sans">Claude Code：工程化能力</h2>
+<ul class="list-disc font-serif">
+<li class="ml-8"><code>/mcp</code>：查看和管理 MCP 服务器</li>
+<li class="ml-8"><code>/agents</code>：管理 subagents</li>
+<li class="ml-8">Hooks：在特定事件触发 shell 脚本</li>
+<li class="ml-8">Skills：让 Claude 按需加载专门能力</li>
+</ul>
+<p class="font-serif my-1">适合做：</p>
+<ul class="list-disc font-serif">
+<li class="ml-8">自动注入项目背景</li>
+<li class="ml-8">自动检查危险命令</li>
+<li class="ml-8">给不同任务分配不同 agent</li>
+<li class="ml-8">让 Claude 接入浏览器、GitHub、数据库、Anki 等外部系统</li>
+</ul></div></section><section><div><h2 id="claude-code-mode" class="text-xl mt-2 pb-2 font-sans">Claude Code 的几个 Mode</h2>
+<p class="font-serif my-1">权限光谱：从“先想清楚”到“全自动执行”。</p>
+<ul class="list-disc font-serif">
+<li class="ml-8"><strong>Default</strong>：每次工具调用都确认，适合新手和关键目录</li>
+<li class="ml-8"><strong>Plan mode</strong>：只读不写，适合先分析方案</li>
+<li class="ml-8"><strong>Accept edits</strong>：自动接受编辑，适合方向明确的批量改动</li>
+<li class="ml-8"><strong>Bypass permissions</strong>：跳过权限确认，只建议在沙盒、容器、临时 worktree 使用</li>
+</ul>
+<blockquote>
+<p class="font-serif my-1">Tips：按住 <strong>Shift + Tab</strong> 可以快速切换模式。</p>
+</blockquote></div></section><section><div><h2 id="claude-code-demo" class="text-xl mt-2 pb-2 font-sans">Claude Code Demo：研究一个陌生项目</h2>
+<p class="font-serif my-1">可以现场演示：</p>
+<div class="codehilite"><pre class="bg-gray-100 overflow-x-auto rounded p-2 mb-2 mt-2"><span/><code>请先不要改代码。
+阅读 README、依赖文件和入口文件。
+告诉我：
+1. 这个项目是做什么的
+2. 技术栈是什么
+3. 怎么启动
+4. 核心模块在哪里
+5. 如果我要加一个功能，应该从哪里入手
+</code></pre></div></div></section><section><div><h2 id="claude-code-demo" class="text-xl mt-2 pb-2 font-sans">Claude Code Demo：让它闭环验证</h2>
+<p class="font-serif my-1">关键提示词：</p>
+<div class="codehilite"><pre class="bg-gray-100 overflow-x-auto rounded p-2 mb-2 mt-2"><span/><code>实现后请你自己验证。
+如果有测试就跑测试；
+如果是前端就启动服务并检查页面；
+如果是脚本就用一个最小样例运行。
+最后告诉我验证命令和结果。
+</code></pre></div>
+
+<p class="font-serif my-1">重点不是“AI 写了什么”，而是“它有没有验证”。</p></div></section></section><section><section><div class="center middle"><div style="width:100%"><div><h1 id="codex" class="text-2xl mt-2 font-sans">Codex</h1>
+<p class="font-serif my-1">Codex 更适合：</p>
+<ul class="list-disc font-serif">
+<li class="ml-8">本地 workspace 里的代码修改和文件操作</li>
+<li class="ml-8">浏览器 / 前端页面验证</li>
+<li class="ml-8">Computer Use：操作桌面应用</li>
+<li class="ml-8">长任务中持续读文件、改文件、跑命令</li>
+<li class="ml-8">和你一起做“本机真实环境”的工作</li>
+</ul></div></div></div></section><section><div><h2 id="why-codex" class="text-xl mt-2 pb-2 font-sans">Why Codex？</h2>
+<ul class="list-disc font-serif">
+<li class="ml-8">对本地 repo 的协作感更强</li>
+<li class="ml-8">浏览器验证、截图检查、Computer Use 体验更完整</li>
+<li class="ml-8">适合把任务从“回答问题”推进到“完成一个本地交付物”</li>
+<li class="ml-8">对文件、终端、前端预览的闭环更自然</li>
+</ul>
+<blockquote>
+<p class="font-serif my-1">Claude Code 和 Codex 不一定二选一，可以按任务搭配。</p>
+</blockquote></div></section><section><div><h2 id="claude-code-vs-codex" class="text-xl mt-2 pb-2 font-sans">Claude Code vs Codex：我怎么选？</h2>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>更推荐</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>终端里快速改项目</td>
+<td>Claude Code / Codex 都可以</td>
+</tr>
+<tr>
+<td>需要本地浏览器截图验证</td>
+<td>Codex</td>
+</tr>
+<tr>
+<td>需要桌面应用操作</td>
+<td>Codex Computer Use</td>
+</tr>
+<tr>
+<td>需要 Claude 生态 MCP / Hooks</td>
+<td>Claude Code</td>
+</tr>
+<tr>
+<td>想比较多个模型 / provider</td>
+<td>CC-Switch</td>
+</tr>
+<tr>
+<td>长期项目记忆和固定规则</td>
+<td>两边都要配置好项目说明</td>
+</tr>
+</tbody>
+</table></div></section><section><div><h2 id="codex-demo-markdown" class="text-xl mt-2 pb-2 font-sans">Codex Demo：修改一份 Markdown</h2>
+<p class="font-serif my-1">可以现场演示这件事：</p>
+<div class="codehilite"><pre class="bg-gray-100 overflow-x-auto rounded p-2 mb-2 mt-2"><span/><code>请阅读这份 Markdown slides。
+帮我把它改成更适合 30 分钟分享的结构：
+1. 保留原来的图片
+2. 统一 slide 分隔符
+3. 每个技术点都加一个可演示的小例子
+4. 直接修改原文件，并备份一份
+</code></pre></div>
+
+<p class="font-serif my-1">这类任务适合 Codex，因为它能直接在本地文件系统里完成。</p></div></section><section><div><h2 id="codex-demo" class="text-xl mt-2 pb-2 font-sans">Codex Demo：前端闭环</h2>
+<p class="font-serif my-1">适合演示：</p>
+<div class="codehilite"><pre class="bg-gray-100 overflow-x-auto rounded p-2 mb-2 mt-2"><span/><code>启动这个前端项目。
+打开本地页面。
+截图检查布局。
+如果文字溢出、按钮重叠、画面空白，请直接修复。
+最后告诉我访问地址和验证结果。
+</code></pre></div>
+
+<p class="font-serif my-1">重点：</p>
+<ul class="list-disc font-serif">
+<li class="ml-8">不是只写代码</li>
+<li class="ml-8">还要真的打开页面看</li>
+<li class="ml-8">修改后再验证</li>
+</ul></div></section></section><section><section><div class="center middle"><div style="width:100%"><div><h1 id="ai" class="text-2xl mt-2 font-sans">AI + 科研</h1>
+<p class="font-serif my-1">AI 可以帮科研做什么？</p>
+<ul class="list-disc font-serif">
+<li class="ml-8">读论文：提炼问题、方法、贡献、局限</li>
+<li class="ml-8">写笔记：把散乱内容整理成结构化知识</li>
+<li class="ml-8">做图：流程图、框架图、示意图、配色参考</li>
+<li class="ml-8">做 slides：从论文 / 笔记生成讲稿结构</li>
+<li class="ml-8">做实验辅助：写脚本、画曲线、整理结果</li>
+</ul></div></div></div></section><section><div><h2 id="_1" class="text-xl mt-2 pb-2 font-sans">当下做图的痛点</h2>
+<ul class="list-disc font-serif">
+<li class="ml-8">直接调提示词，很难一次得到满意的图</li>
+<li class="ml-8">时间长，迭代慢，成本高</li>
+<li class="ml-8">模型容易把文字、结构、风格混在一起</li>
+<li class="ml-8">论文图需要准确，不只是“好看”</li>
+</ul>
+<p class="font-serif my-1">所以我的建议：</p>
+<blockquote>
+<p class="font-serif my-1">不要指望一次生成最终图，而是找到 AI 最擅长的部分。</p>
+</blockquote></div></section><section><div><h2 id="ai" class="text-xl mt-2 pb-2 font-sans">AI 绘图更适合帮哪几件事？</h2>
+<ul class="list-disc font-serif">
+<li class="ml-8">布局参考</li>
+<li class="ml-8">icon / 元素风格</li>
+<li class="ml-8">配色方案</li>
+<li class="ml-8">视觉隐喻</li>
+<li class="ml-8">初稿探索</li>
+<li class="ml-8">局部重绘</li>
+</ul>
+<p class="font-serif my-1">不建议完全交给 AI 的部分：</p>
+<ul class="list-disc font-serif">
+<li class="ml-8">关键公式</li>
+<li class="ml-8">精确坐标</li>
+<li class="ml-8">论文中的严谨文字</li>
+<li class="ml-8">最终可投稿版本的排版细节</li>
+</ul></div></section><section><div><h2 id="_1" class="text-xl mt-2 pb-2 font-sans">我的科研绘图流程</h2>
+<ol>
+<li class="ml-8">先用文字说清楚这张图要表达什么</li>
+<li class="ml-8">让 AI 生成 2-3 个结构草图</li>
+<li class="ml-8">选一个布局方向</li>
+<li class="ml-8">分开迭代：布局、icon、配色、文案</li>
+<li class="ml-8">用最好模型生成高质量初稿</li>
+<li class="ml-8">最后进 PPT / Figma / draw.io / LaTeX 里重排</li>
+</ol>
+<p class="font-serif my-1"><img alt="792" src="/media/uploads/ai-exchange/e49cedda3449b4d3830fdd3df4f4fbe1.jpg"/></p>
+<p class="font-serif my-1">（图片由 GPT-image2 生成）</p></div></section><section><div><h2 id="_1" class="text-xl mt-2 pb-2 font-sans">一个可复用的绘图提示词</h2>
+<div class="codehilite"><pre class="bg-gray-100 overflow-x-auto rounded p-2 mb-2 mt-2"><span/><code>我要做一张论文方法框架图。
+主题是：[你的方法主题]
+图中必须包含：[模块 A]、[模块 B]、[模块 C]
+它们之间的关系是：[数据如何流动]
+风格要求：
+- 学术论文风格
+- 简洁、清晰、适合放在 slides
+- 不要复杂背景
+- 文字只用英文短词
+
+请先给我 3 个布局方案，不要直接出图。
+</code></pre></div></div></section><section><div><h2 id="_1" class="text-xl mt-2 pb-2 font-sans">多模态模型和工具选择</h2>
+<p class="font-serif my-1">可以关注：</p>
+<ul class="list-disc font-serif">
+<li class="ml-8">nanobanana</li>
+<li class="ml-8">nanobanana2</li>
+<li class="ml-8">GPT-image2</li>
+<li class="ml-8">其他图像生成 / 编辑模型</li>
+</ul>
+<p class="font-serif my-1"><img alt="678" src="/media/uploads/ai-exchange/file-20260508165422773.png"/></p>
+<blockquote>
+<p class="font-serif my-1">正式分享前建议更新一版：模型名字、价格、效果都变得很快。</p>
+</blockquote></div></section><section><div><h2 id="_1" class="text-xl mt-2 pb-2 font-sans">推荐阅读</h2>
+<ul class="list-disc font-serif">
+<li class="ml-8">https://x.com/hitw93/status/2032091246588518683?s=46</li>
+<li class="ml-8">https://x.com/JustinLin610/status/2037116325210829168</li>
+<li class="ml-8">https://mp.weixin.qq.com/s/tO15UKQG0WtTBTNz8QLQjQ</li>
+</ul></div></section></section><section><section><div class="center middle"><div style="width:100%"><div><h1 id="_1" class="text-2xl mt-2 font-sans">工具组合与心得</h1>
+<p class="font-serif my-1">把前面的工具串成自己的长期工作流。</p></div></div></div></section><section><div><h2 id="slides-notebooklm-browseruse-computeruse" class="text-xl mt-2 pb-2 font-sans">Slides / NotebookLM / BrowserUse / ComputerUse</h2>
+<p class="font-serif my-1">这些工具可以串成一个科研工作流：</p>
+<ul class="list-disc font-serif">
+<li class="ml-8">NotebookLM：围绕论文、资料做问答和总结</li>
+<li class="ml-8">Slides：把笔记转成汇报结构</li>
+<li class="ml-8">BrowserUse：需要网页操作时自动浏览、搜索、填写</li>
+<li class="ml-8">ComputerUse：需要操作桌面软件时接管 GUI</li>
+<li class="ml-8">Obsidian：沉淀自己的长期知识库</li>
+</ul></div></section><section><div><h2 id="_1" class="text-xl mt-2 pb-2 font-sans">笔记软件怎么选？</h2>
+<p class="font-serif my-1">可以从这几个维度比较：</p>
+<ul class="list-disc font-serif">
+<li class="ml-8">多设备同步</li>
+<li class="ml-8">隐私性</li>
+<li class="ml-8">Markdown 兼容性</li>
+<li class="ml-8">离线可用性</li>
+<li class="ml-8">AI 接入难度</li>
+<li class="ml-8">长期可迁移性</li>
+</ul></div></section><section><div><h2 id="notion-obsidian-word-onenote" class="text-xl mt-2 pb-2 font-sans">Notion / Obsidian / Word / OneNote / 幕布</h2>
+<table>
+<thead>
+<tr>
+<th>工具</th>
+<th>优点</th>
+<th>注意点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Notion</td>
+<td>协作强、数据库强、界面友好</td>
+<td>离线和迁移成本要考虑</td>
+</tr>
+<tr>
+<td>Obsidian</td>
+<td>本地 Markdown、可控、插件丰富</td>
+<td>同步和插件配置需要折腾</td>
+</tr>
+<tr>
+<td>Word</td>
+<td>正式文档、格式稳定、审阅强</td>
+<td>知识库和链接能力弱</td>
+</tr>
+<tr>
+<td>OneNote</td>
+<td>手写、课堂笔记、多设备体验好</td>
+<td>Markdown 和导出不够理想</td>
+</tr>
+<tr>
+<td>幕布</td>
+<td>大纲整理快</td>
+<td>长期知识管理能力有限</td>
+</tr>
+</tbody>
+</table></div></section><section><div><h2 id="_1" class="text-xl mt-2 pb-2 font-sans">我的工具组合</h2>
+<p class="font-serif my-1">可以按任务分工：</p>
+<ul class="list-disc font-serif">
+<li class="ml-8">Obsidian：长期笔记和个人知识库</li>
+<li class="ml-8">NotebookLM：围绕一批文献快速问答</li>
+<li class="ml-8">Claude Code / Codex：本地项目、脚本、文档和自动化</li>
+<li class="ml-8">图像模型：科研图初稿、配色、视觉方案</li>
+<li class="ml-8">PPT / Figma / draw.io：最终排版和精修</li>
+</ul>
+<p class="font-serif my-1"><img alt="675" src="/media/uploads/ai-exchange/9AD3E7E9-D653-4567-B70F-DB751CCD7307.png"/></p></div></section><section><div><h2 id="_1" class="text-xl mt-2 pb-2 font-sans">一点小小的心得</h2>
+<ul class="list-disc font-serif">
+<li class="ml-8">用好模型做关键任务，用便宜模型做批量任务</li>
+<li class="ml-8">复杂任务要拆小，不要一次塞满</li>
+<li class="ml-8">让 AI 自己验证结果，而不是只让它“生成”</li>
+<li class="ml-8">保存好的提示词、项目说明和工作流</li>
+<li class="ml-8">不要迷信某一个工具，工具会变，方法更重要</li>
+<li class="ml-8">别掉队，但也不用焦虑，只和过去的自己比较</li>
+</ul></div></section><section><div><h2 id="_1" class="text-xl mt-2 pb-2 font-sans">我的主观模型感受</h2>
+<p class="font-serif my-1">🤩 顶级旗舰<br/>
+Claude Opus 系列、GPT 旗舰系列</p>
+<p class="font-serif my-1">👊 国产模型<br/>
+Mimo、GLM、DeepSeek、Kimi 等</p>
+<p class="font-serif my-1"><img alt="668" src="/media/uploads/ai-exchange/file-20260508161805277.png"/></p>
+<p class="font-serif my-1"><img alt="656" src="/media/uploads/ai-exchange/file-20260508161216146.png"/></p>
+<p class="font-serif my-1">（纯主观感受，正式分享前建议更新到当天版本。）</p>
+<p class="font-serif my-1"><img alt="636" src="/media/uploads/ai-exchange/Agentic 带模型～.png"/></p></div></section><section><div><h2 id="_1" class="text-xl mt-2 pb-2 font-sans">更加重要的是：形成自己的工作流</h2>
+<p class="font-serif my-1"><img alt="870" src="/media/uploads/ai-exchange/file-20260508135717731.png"/></p>
+<p class="font-serif my-1">工具会变：</p>
+<ul class="list-disc font-serif">
+<li class="ml-8">今天是 Claude Code / Codex</li>
+<li class="ml-8">明天可能是新的 Agent 工具</li>
+<li class="ml-8">模型名字和价格也会一直变</li>
+</ul>
+<p class="font-serif my-1">但长期有效的是：</p>
+<ul class="list-disc font-serif">
+<li class="ml-8">会拆任务</li>
+<li class="ml-8">会控制上下文</li>
+<li class="ml-8">会让 AI 验证</li>
+<li class="ml-8">会把经验沉淀成模板和笔记</li>
+</ul></div></section><section><div><h2 id="_1" class="text-xl mt-2 pb-2 font-sans">结束页</h2>
+<p class="font-serif my-1">Stay curious, keep exploring!</p>
+<p class="font-serif my-1">Have a good day! 😃</p></div></section></section>
+    </div>
+</div>
+
+<script src="./static/reveal/reveal.js"></script>
+
+<script>
+    Reveal.initialize({
+
+        width: 1024, height: 768,
+
+        slideNumber: 'c/t',
+        controlsTutorial: false,
+        progress: false,
+        hash: true,
+        center: false,
+        autoAnimateUnmatched: true,
+        autoAnimateEasing: 'ease-out',
+        autoAnimateDuration: 0.3,
+        transitionSpeed: 'fast'
+    });
+</script>
+</body>
+
+</html>

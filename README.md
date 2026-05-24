@@ -1,3 +1,5 @@
+> 本项目基于 [xieyumc/jyySlideWeb](https://github.com/xieyumc/jyySlideWeb) 修改而来，原作者保留所有权利。本 fork 修复了若干 bug 并添加了新功能。
+
 # feature🚀
 可以尝试访问在线[demo](http://slide.yuyu.pub/public/)，直接查看效果👀
 

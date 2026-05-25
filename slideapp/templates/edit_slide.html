@@ -453,18 +453,35 @@
         var currentSlideStart = 0;
         var hIndex = 0;
         var vIndex = 0;
+        var inCode = false;
+        var fenceChar = '';
 
         for (var i = 0; i <= lines.length; i++) {
             var line = lines[i] || '';
-            if (line.trim() === '---') {
-                result.push({start: currentSlideStart, end: position, h: hIndex, v: vIndex});
-                hIndex++;
-                vIndex = 0;
-                currentSlideStart = position + line.length + 1;
-            } else if (line.trim() === '----' || line.trim() === '++++') {
-                result.push({start: currentSlideStart, end: position, h: hIndex, v: vIndex});
-                vIndex++;
-                currentSlideStart = position + line.length + 1;
+            var trimmed = line.trim();
+            // Track fenced code blocks (``` or ~~~)
+            var fenceMatch = trimmed.match(/^(`{3,}|~{3,})/);
+            if (fenceMatch) {
+                var ch = fenceMatch[1][0];
+                if (!inCode) {
+                    inCode = true;
+                    fenceChar = ch;
+                } else if (ch === fenceChar) {
+                    inCode = false;
+                    fenceChar = '';
+                }
+            }
+            if (!inCode) {
+                if (trimmed === '---') {
+                    result.push({start: currentSlideStart, end: position, h: hIndex, v: vIndex});
+                    hIndex++;
+                    vIndex = 0;
+                    currentSlideStart = position + line.length + 1;
+                } else if (trimmed === '----' || trimmed === '++++') {
+                    result.push({start: currentSlideStart, end: position, h: hIndex, v: vIndex});
+                    vIndex++;
+                    currentSlideStart = position + line.length + 1;
+                }
             }
             position += line.length + 1;
         }

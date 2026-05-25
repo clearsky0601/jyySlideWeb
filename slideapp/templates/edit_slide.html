@@ -3,32 +3,20 @@
 <head>
     <title>{{ slide.title }}</title>
     <style>
+        * { box-sizing: border-box; }
         body {
             display: flex;
             height: 100vh;
             margin: 0;
+            background: #f5f3ef;
         }
 
         #editor-wrapper {
             width: 50%;
             height: 100%;
             position: relative;
-        }
-
-        #editor {
-            width: 100%;
-            height: 100%;
-            box-sizing: border-box;
-        }
-
-        #slide-highlight {
-            position: absolute;
-            left: 0;
-            right: 0;
-            background: rgba(255, 220, 100, 0.25);
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.15s;
+            overflow: hidden;
+            border-right: 1px solid #d8d0c4;
         }
 
         #preview {
@@ -42,14 +30,13 @@
             border: none;
         }
 
-        /* 工具栏样式 */
         #toolbar {
             position: fixed;
             top: 20px;
             right: 20px;
+            z-index: 100;
         }
 
-        /* 返回主页按钮样式 */
         .return-button {
             background-color: gray;
             border: none;
@@ -61,49 +48,221 @@
         }
 
         .return-button:hover {
-            background-color: gray;
+            background-color: #666;
         }
 
+        /* CodeMirror editor styles */
+        .cm-editor {
+            height: 100% !important;
+            background: #faf9f7;
+        }
+        .cm-editor.cm-focused {
+            outline: none;
+        }
+        .cm-scroller {
+            overflow: auto !important;
+            font-family: 'Inconsolata', 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace !important;
+            font-size: 13.5px !important;
+            line-height: 1.65 !important;
+        }
+        .cm-content {
+            padding: 16px 12px !important;
+            caret-color: #374151;
+        }
+        .cm-gutters {
+            background: #f5f3ef !important;
+            border-right: 1px solid #e0dbd3 !important;
+            color: #bbb3a6 !important;
+            font-size: 12px;
+        }
+        .cm-activeLineGutter {
+            background: #ede9e2 !important;
+            color: #7a6e5e !important;
+        }
+        .cm-activeLine {
+            background: rgba(0, 0, 0, 0.025) !important;
+        }
+        .cm-selectionBackground,
+        .cm-editor.cm-focused .cm-selectionBackground {
+            background: #d4e4f7 !important;
+        }
+        .cm-cursor, .cm-dropCursor {
+            border-left-color: #374151 !important;
+            border-left-width: 2px !important;
+        }
+        .cm-foldGutter {
+            display: none !important;
+        }
+
+        /* Slide highlight blink */
+        .cm-slide-highlight {
+            background: rgba(255, 210, 80, 0.22) !important;
+        }
     </style>
 </head>
 <body>
-<!-- 工具栏，包含返回主页的按钮 -->
 <div id="toolbar">
     <button class="return-button" onclick="location.href='{% url 'index' %}'">返回主页</button>
 </div>
 
-<div id="editor-wrapper">
-    <textarea id="editor"></textarea>
-    <div id="slide-highlight"></div>
-</div>
+<div id="editor-wrapper"></div>
 <div id="preview">
     <iframe id="preview-iframe"></iframe>
 </div>
 
-<!-- 引入 jQuery -->
 {% load static %}
 <script src="{% static 'js/jquery-3.7.1.min.js' %}"></script>
-<!-- 与 WebSocket 进行通信的脚本 -->
-<script>
-    var slideId = {{ slide.id }};
+<script type="module">
+    // --- CodeMirror 6 imports (local bundle) ---
+    import {
+        EditorView, basicSetup,
+        EditorState, StateEffect, StateField,
+        Decoration, keymap,
+        markdown,
+        syntaxHighlighting, HighlightStyle,
+        tags
+    } from "{% static 'js/codemirror-bundle.min.js' %}"
 
-    // 自动判断使用 ws:// 或 wss://
+    // --- Markdown syntax highlight colors (source-code mode) ---
+    const mdHighlight = HighlightStyle.define([
+        {tag: tags.heading1, color: "#1a56db", fontWeight: "700"},
+        {tag: tags.heading2, color: "#1e40af", fontWeight: "700"},
+        {tag: tags.heading3, color: "#2563eb", fontWeight: "600"},
+        {tag: tags.heading4, color: "#3b82f6", fontWeight: "600"},
+        {tag: tags.heading5, color: "#60a5fa", fontWeight: "600"},
+        {tag: tags.heading6, color: "#93c5fd", fontWeight: "600"},
+        {tag: tags.processingInstruction, color: "#b0a898"},
+        {tag: tags.emphasis, fontStyle: "italic", color: "#7c3aed"},
+        {tag: tags.strong, fontWeight: "bold"},
+        {tag: tags.monospace, color: "#c05529", background: "rgba(192,85,41,0.08)", borderRadius: "3px"},
+        {tag: tags.link, color: "#2563eb", textDecoration: "underline"},
+        {tag: tags.url, color: "#8b95a5"},
+        {tag: tags.quote, color: "#6b7280", fontStyle: "italic"},
+        {tag: tags.contentSeparator, color: "#c05529", fontWeight: "bold"},
+        {tag: tags.list, color: "#c05529", fontWeight: "600"},
+        {tag: tags.meta, color: "#8b95a5"},
+        {tag: tags.comment, color: "#a0a0a0", fontStyle: "italic"},
+    ]);
+
+    // --- Slide highlight decoration ---
+    const setSlideHighlight = StateEffect.define();
+    const slideHighlightField = StateField.define({
+        create() { return Decoration.none },
+        update(decos, tr) {
+            for (let e of tr.effects) {
+                if (e.is(setSlideHighlight)) {
+                    if (!e.value) return Decoration.none;
+                    let {from, to} = e.value;
+                    let doc = tr.state.doc;
+                    let decorations = [];
+                    let pos = Math.min(from, doc.length);
+                    let end = Math.min(to, doc.length);
+                    if (pos > end) return Decoration.none;
+                    while (pos <= end && pos <= doc.length) {
+                        let line = doc.lineAt(pos);
+                        decorations.push(
+                            Decoration.line({class: "cm-slide-highlight"}).range(line.from)
+                        );
+                        if (line.to >= doc.length) break;
+                        pos = line.to + 1;
+                    }
+                    return Decoration.set(decorations);
+                }
+            }
+            return decos;
+        },
+        provide: f => EditorView.decorations.from(f)
+    });
+
+    // --- Application state ---
+    var slideId = {{ slide.id }};
     var protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
     var socket = new WebSocket(protocol + window.location.host + '/ws/slide/' + slideId + '/');
-
     var currentIndices = {h: 0, v: 0};
-    var editor = document.getElementById('editor');
     var serverVersion = null;
+    var slides = [];
+    var lastSlideIndices = {h: -1, v: -1};
+    var suppressUpdate = false;
 
-    var slides = []; // 存储幻灯片的位置信息
-    var lastSlideIndices = {h: -1, v: -1}; // 记录上一次的幻灯片索引
+    // --- Create CodeMirror editor ---
+    const cm = new EditorView({
+        state: EditorState.create({
+            doc: "",
+            extensions: [
+                keymap.of([{
+                    key: "Mod-s",
+                    run() { saveSlide(); return true; }
+                }]),
+                basicSetup,
+                markdown(),
+                syntaxHighlighting(mdHighlight),
+                EditorView.lineWrapping,
+                slideHighlightField,
+                EditorView.updateListener.of(update => {
+                    if (update.docChanged && !suppressUpdate) {
+                        slides = parseSlides(cm.state.doc.toString());
+                        sendPreview();
+                    }
+                }),
+                EditorView.updateListener.of(update => {
+                    if (update.selectionSet) {
+                        onCursorPositionChange();
+                    }
+                }),
+                EditorView.domEventHandlers({
+                    paste(event, view) {
+                        var items = event.clipboardData && event.clipboardData.items;
+                        if (!items) return;
+                        for (var i = 0; i < items.length; i++) {
+                            if (items[i].type.indexOf('image') !== -1) {
+                                uploadImage(items[i].getAsFile());
+                                event.preventDefault();
+                                return true;
+                            }
+                        }
+                    },
+                    drop(event, view) {
+                        var files = event.dataTransfer && event.dataTransfer.files;
+                        if (!files) return;
+                        for (var i = 0; i < files.length; i++) {
+                            if (files[i].type.indexOf('image') !== -1) {
+                                uploadImage(files[i]);
+                                event.preventDefault();
+                                return true;
+                            }
+                        }
+                    }
+                })
+            ]
+        }),
+        parent: document.getElementById('editor-wrapper')
+    });
 
+    // --- Editor helpers ---
+    function getContent() {
+        return cm.state.doc.toString();
+    }
+
+    function setContent(text) {
+        suppressUpdate = true;
+        cm.dispatch({
+            changes: {from: 0, to: cm.state.doc.length, insert: text}
+        });
+        suppressUpdate = false;
+    }
+
+    function getCursorPos() {
+        return cm.state.selection.main.head;
+    }
+
+    function setCursorPos(pos) {
+        cm.dispatch({selection: {anchor: Math.min(pos, cm.state.doc.length)}});
+    }
+
+    // --- WebSocket ---
     socket.onopen = function (e) {
         console.log('WebSocket 连接已打开');
-        // 加载幻灯片内容
-        socket.send(JSON.stringify({
-            'action': 'load'
-        }));
+        socket.send(JSON.stringify({'action': 'load'}));
     };
 
     socket.onmessage = function (e) {
@@ -111,39 +270,34 @@
         var action = data['action'];
 
         if (action === 'load') {
-            var cursorPos = editor.selectionStart;
-            var scrollTop = editor.scrollTop;
-
-            editor.value = data['content'];
+            var cursorPos = getCursorPos();
+            var scrollTop = cm.scrollDOM.scrollTop;
+            setContent(data['content']);
             serverVersion = data['version'];
-            slides = parseSlides(editor.value);
-
-            editor.selectionStart = editor.selectionEnd = Math.min(cursorPos, editor.value.length);
-            editor.scrollTop = scrollTop;
-
+            slides = parseSlides(getContent());
+            setCursorPos(cursorPos);
+            requestAnimationFrame(function () { cm.scrollDOM.scrollTop = scrollTop; });
             sendPreview();
             onCursorPositionChange();
+
         } else if (action === 'reload') {
             var iframe = document.getElementById('preview-iframe');
             if (iframe.contentWindow && iframe.contentWindow.Reveal && iframe.contentWindow.Reveal.getIndices) {
                 currentIndices = iframe.contentWindow.Reveal.getIndices();
             }
-            var cursorPos = editor.selectionStart;
-            var scrollTop = editor.scrollTop;
-
-            editor.value = data['content'];
+            var cursorPos = getCursorPos();
+            var scrollTop = cm.scrollDOM.scrollTop;
+            setContent(data['content']);
             serverVersion = data['version'];
-            slides = parseSlides(editor.value);
-
-            editor.selectionStart = editor.selectionEnd = Math.min(cursorPos, editor.value.length);
-            editor.scrollTop = scrollTop;
-
+            slides = parseSlides(getContent());
+            setCursorPos(cursorPos);
+            requestAnimationFrame(function () { cm.scrollDOM.scrollTop = scrollTop; });
             sendPreview();
             console.log('Content reloaded from server (reason: ' + data['reason'] + ')');
+
         } else if (action === 'save_ok') {
             serverVersion = data['version'];
             var html_content = data['html'];
-
             var iframe = document.getElementById('preview-iframe');
             if (iframe.contentWindow && iframe.contentWindow.Reveal && iframe.contentWindow.Reveal.getIndices) {
                 currentIndices = iframe.contentWindow.Reveal.getIndices();
@@ -165,29 +319,22 @@
                 restoreSlide();
             };
             console.log('Save successful, version: ' + serverVersion);
+
         } else if (action === 'version_info') {
             if (serverVersion !== null && data['version'] !== serverVersion) {
                 socket.send(JSON.stringify({'action': 'load'}));
             }
+
         } else if (action === 'preview') {
             var html_content = data['html'];
-
             var iframe = document.getElementById('preview-iframe');
-
-            // 获取当前幻灯片的索引
             if (iframe.contentWindow && iframe.contentWindow.Reveal && iframe.contentWindow.Reveal.getIndices) {
                 currentIndices = iframe.contentWindow.Reveal.getIndices();
             }
-
-            // 更新预览 iframe 的内容
             iframe.contentDocument.open();
             iframe.contentDocument.write(html_content);
             iframe.contentDocument.close();
-
-            // 清除错误消息
             clearErrorMessage();
-
-            // 等待 iframe 加载完成后，恢复幻灯片位置
             iframe.onload = function () {
                 function restoreSlide() {
                     if (iframe.contentWindow.Reveal && iframe.contentWindow.Reveal.isReady()) {
@@ -198,12 +345,11 @@
                         setTimeout(restoreSlide, 50);
                     }
                 }
-
                 restoreSlide();
             };
+
         } else if (action === 'error') {
-            var errorMessage = data['message'];
-            displayErrorMessage(errorMessage);
+            displayErrorMessage(data['message']);
         }
     };
 
@@ -211,83 +357,53 @@
         console.log('WebSocket 连接已关闭');
     };
 
-    // 监听编辑器内容的变化，实时预览
-    $('#editor').on('input', function () {
-        // 更新幻灯片解析
-        slides = parseSlides(editor.value);
-
-        sendPreview();
-    });
-
     function sendPreview() {
-        var markdown = $('#editor').val();
-        socket.send(JSON.stringify({
-            'action': 'preview',
-            'markdown': markdown
-        }));
+        if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+                'action': 'preview',
+                'markdown': getContent()
+            }));
+        }
     }
 
-    // 显示错误消息
+    // --- Error display ---
     function displayErrorMessage(message) {
-        // 如果不存在错误消息元素，创建一个
         if (!document.getElementById('error-message')) {
             var errorDiv = document.createElement('div');
             errorDiv.id = 'error-message';
-            errorDiv.style.position = 'fixed';
-            errorDiv.style.bottom = '20px';
-            errorDiv.style.left = '20px';
-            errorDiv.style.backgroundColor = 'rgba(255, 0, 0, 0.8)';
-            errorDiv.style.color = '#fff';
-            errorDiv.style.padding = '10px';
-            errorDiv.style.borderRadius = '5px';
-            errorDiv.style.maxWidth = '300px';
-            errorDiv.style.zIndex = '1000';
-            errorDiv.style.fontSize = '14px';
-            errorDiv.style.lineHeight = '1.5';
+            errorDiv.style.cssText = 'position:fixed;bottom:20px;left:20px;background:rgba(255,0,0,0.8);color:#fff;padding:10px;border-radius:5px;max-width:300px;z-index:1000;font-size:14px;line-height:1.5';
             document.body.appendChild(errorDiv);
         }
-
-        var errorDiv = document.getElementById('error-message');
-        errorDiv.textContent = '语法错误：' + message;
+        document.getElementById('error-message').textContent = '语法错误：' + message;
     }
 
-    // 清除错误消息
     function clearErrorMessage() {
-        var errorDiv = document.getElementById('error-message');
-        if (errorDiv) {
-            errorDiv.parentNode.removeChild(errorDiv);
+        var el = document.getElementById('error-message');
+        if (el) el.remove();
+    }
+
+    // --- Save ---
+    function saveSlide() {
+        if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+                'action': 'save',
+                'markdown': getContent(),
+                'version': serverVersion
+            }));
+            console.log('Saving slide...');
         }
     }
 
-    // 自动保存功能，每分钟保存一次
-    setInterval(function () {
-        saveSlide();
-    }, 60000); // 60000 毫秒，即 1 分钟
+    setInterval(saveSlide, 60000);
+    window.addEventListener('beforeunload', saveSlide);
 
-    // 手动保存函数
-    function saveSlide() {
-        var markdown = $('#editor').val();
-        socket.send(JSON.stringify({
-            'action': 'save',
-            'markdown': markdown,
-            'version': serverVersion
-        }));
-        console.log('Saving slide...');
-    }
-
-    // 在页面关闭或刷新时，保存内容
-    window.addEventListener('beforeunload', function (e) {
-        saveSlide();
-    });
-
-    // 获取 CSRF token 的函数
+    // --- Image upload ---
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
             let cookies = document.cookie.split(';');
             for (let i = 0; i < cookies.length; i++) {
                 let cookie = cookies[i].trim();
-                // 检查这个 cookie 字符串是否以我们想要的名字开头
                 if (cookie.substring(0, name.length + 1) === (name + '=')) {
                     cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
                     break;
@@ -299,37 +415,11 @@
 
     var csrftoken = getCookie('csrftoken');
 
-    // 监听粘贴事件
-    editor.addEventListener('paste', function (e) {
-        var items = (e.clipboardData || e.originalEvent.clipboardData).items;
-        for (var i = 0; i < items.length; i++) {
-            if (items[i].type.indexOf('image') !== -1) {
-                var file = items[i].getAsFile();
-                uploadImage(file);
-                e.preventDefault();
-            }
-        }
-    });
-
-    // 监听拖放事件
-    editor.addEventListener('drop', function (e) {
-        e.preventDefault();
-        var files = e.dataTransfer.files;
-        for (var i = 0; i < files.length; i++) {
-            if (files[i].type.indexOf('image') !== -1) {
-                uploadImage(files[i]);
-            }
-        }
-    });
-
     function uploadImage(file) {
         var formData = new FormData();
         formData.append('image', file);
-
-        // 使用 AJAX 发送图片数据
         var xhr = new XMLHttpRequest();
         xhr.open('POST', '/upload_image/', true);
-
         xhr.onload = function () {
             if (xhr.status === 200) {
                 var response = JSON.parse(xhr.responseText);
@@ -342,110 +432,74 @@
                 alert('上传失败');
             }
         };
-
         xhr.setRequestHeader('X-CSRFToken', csrftoken);
         xhr.send(formData);
     }
 
     function insertImageMarkdown(url) {
         var markdownImage = '![](' + url + ')';
-
-        // 获取光标位置并插入文本
-        var startPos = editor.selectionStart;
-        var endPos = editor.selectionEnd;
-        var value = editor.value;
-
-        editor.value = value.substring(0, startPos) + markdownImage + value.substring(endPos);
-        editor.selectionStart = editor.selectionEnd = startPos + markdownImage.length;
-
-        // 触发输入事件，更新预览
-        editor.dispatchEvent(new Event('input'));
+        var sel = cm.state.selection.main;
+        cm.dispatch({
+            changes: {from: sel.from, to: sel.to, insert: markdownImage},
+            selection: {anchor: sel.from + markdownImage.length}
+        });
     }
 
-    // 解析幻灯片函数，支持新的分隔符
+    // --- Slide parsing ---
     function parseSlides(markdownText) {
         var lines = markdownText.split('\n');
-        var slides = [];
+        var result = [];
         var position = 0;
         var currentSlideStart = 0;
-        var hIndex = 0; // 水平索引
-        var vIndex = 0; // 垂直索引
+        var hIndex = 0;
+        var vIndex = 0;
 
         for (var i = 0; i <= lines.length; i++) {
             var line = lines[i] || '';
-
             if (line.trim() === '---') {
-                // 水平幻灯片分隔符
-                slides.push({
-                    start: currentSlideStart,
-                    end: position,
-                    h: hIndex,
-                    v: vIndex
-                });
+                result.push({start: currentSlideStart, end: position, h: hIndex, v: vIndex});
                 hIndex++;
                 vIndex = 0;
                 currentSlideStart = position + line.length + 1;
             } else if (line.trim() === '----' || line.trim() === '++++') {
-                // 垂直幻灯片分隔符
-                slides.push({
-                    start: currentSlideStart,
-                    end: position,
-                    h: hIndex,
-                    v: vIndex
-                });
+                result.push({start: currentSlideStart, end: position, h: hIndex, v: vIndex});
                 vIndex++;
                 currentSlideStart = position + line.length + 1;
             }
-
-            position += line.length + 1; // +1 用于换行符
+            position += line.length + 1;
         }
 
-        // 添加最后一张幻灯片
-        slides.push({
-            start: currentSlideStart,
-            end: position,
-            h: hIndex,
-            v: vIndex
-        });
-
-        return slides;
+        result.push({start: currentSlideStart, end: position, h: hIndex, v: vIndex});
+        return result;
     }
 
-    // 当预览中切换幻灯片时，滚动编辑器到对应位置并闪烁
+    // --- Editor ↔ Preview sync ---
     function scrollEditorToSlide(h, v) {
         for (var i = 0; i < slides.length; i++) {
             if (slides[i].h === h && slides[i].v === v) {
                 var slide = slides[i];
-                lastSlideIndices.h = h;
-                lastSlideIndices.v = v;
+                lastSlideIndices = {h: h, v: v};
 
-                // 计算行高和目标位置
-                var textBefore = editor.value.substring(0, slide.start);
-                var linesBefore = textBefore.split('\n').length - 1;
-                var totalLines = editor.value.split('\n').length;
-                var lineHeight = totalLines > 0 ? editor.scrollHeight / totalLines : 16;
-
-                // zt: slide 文字滚动到编辑器顶部
-                editor.scrollTop = linesBefore * lineHeight;
-
-                // 设光标位置（不 focus，不抢焦点）
-                editor.setSelectionRange(slide.start, slide.start);
-
-                // overlay 高亮当前 slide 对应行，闪烁 2 次
-                var slideText = editor.value.substring(slide.start, slide.end);
-                var slideLines = slideText.split('\n').length;
-                var hl = document.getElementById('slide-highlight');
-                var topOffset = linesBefore * lineHeight - editor.scrollTop;
-                hl.style.top = topOffset + 'px';
-                hl.style.height = (slideLines * lineHeight) + 'px';
+                var from = Math.min(slide.start, cm.state.doc.length);
+                cm.dispatch({
+                    effects: EditorView.scrollIntoView(from, {y: "start", yMargin: 10}),
+                    selection: {anchor: from}
+                });
 
                 var blinkCount = 0;
                 function doBlink() {
                     if (blinkCount >= 4) {
-                        hl.style.opacity = '0';
+                        cm.dispatch({effects: setSlideHighlight.of(null)});
                         return;
                     }
-                    hl.style.opacity = (blinkCount % 2 === 0) ? '1' : '0';
+                    if (blinkCount % 2 === 0) {
+                        cm.dispatch({effects: setSlideHighlight.of({
+                            from: slide.start,
+                            to: Math.min(slide.end, cm.state.doc.length)
+                        })});
+                    } else {
+                        cm.dispatch({effects: setSlideHighlight.of(null)});
+                    }
                     blinkCount++;
                     setTimeout(doBlink, 180);
                 }
@@ -455,7 +509,6 @@
         }
     }
 
-    // slidechanged 事件的统一处理：更新索引 + 反向定位编辑器
     function onRevealSlideChanged() {
         var iframe = document.getElementById('preview-iframe');
         if (!iframe.contentWindow || !iframe.contentWindow.Reveal) return;
@@ -465,56 +518,36 @@
         }
     }
 
-    // 导航到指定幻灯片
     function navigateToSlide(h, v) {
         var iframe = document.getElementById('preview-iframe');
-
         function doNavigate() {
             if (iframe.contentWindow && iframe.contentWindow.Reveal && iframe.contentWindow.Reveal.isReady()) {
                 iframe.contentWindow.Reveal.slide(h, v);
             } else {
-                // 等待并重试
                 setTimeout(doNavigate, 50);
             }
         }
-
         doNavigate();
     }
 
-    // 光标位置变化处理函数
     function onCursorPositionChange() {
-        var cursorPos = editor.selectionStart;
-
-        // 使用最新的幻灯片数组
+        var cursorPos = getCursorPos();
         for (var i = 0; i < slides.length; i++) {
             var slide = slides[i];
             if (cursorPos >= slide.start && cursorPos <= slide.end) {
-                var h = slide.h;
-                var v = slide.v;
-
-                // 如果幻灯片索引已改变
-                if (h !== lastSlideIndices.h || v !== lastSlideIndices.v) {
-                    lastSlideIndices.h = h;
-                    lastSlideIndices.v = v;
-                    // 导航到对应幻灯片
-                    navigateToSlide(h, v);
+                if (slide.h !== lastSlideIndices.h || slide.v !== lastSlideIndices.v) {
+                    lastSlideIndices = {h: slide.h, v: slide.v};
+                    navigateToSlide(slide.h, slide.v);
                 }
                 break;
             }
         }
     }
 
-    // 监听光标位置变化事件
-    editor.addEventListener('keyup', onCursorPositionChange);
-    editor.addEventListener('mouseup', onCursorPositionChange);
-
-    // 初始化幻灯片解析
-    slides = parseSlides(editor.value);
-
-    // 初始设置光标位置事件
+    // --- Init ---
+    slides = parseSlides(getContent());
     onCursorPositionChange();
 
-    // 每 3 秒轮询版本号，检测外部修改
     setInterval(function () {
         if (socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({'action': 'check_version'}));

@@ -3,13 +3,39 @@
 from django.db import models
 from django.contrib.auth.models import User
 
+
+class SlideCategory(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    position = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ('position', 'name')
+
+    def __str__(self):
+        return self.name
+
+
 class Slide(models.Model):
     title = models.CharField(max_length=200, default='未命名')
     content = models.TextField(blank=True)
+    category = models.CharField(max_length=100, blank=True, default='')
+    category_ref = models.ForeignKey(
+        SlideCategory,
+        null=True,
+        blank=True,
+        related_name='slides',
+        on_delete=models.SET_NULL,
+    )
+    sort_order = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     lock = models.BooleanField(default=True)
     version = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ('sort_order', '-updated_at', '-id')
 
     def extract_title_from_content(self):
         lines = self.content.split('\n')

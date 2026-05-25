@@ -1,196 +1,525 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-    <title>Slide</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slides</title>
     <style>
-        /* 原有的样式保持不变 */
-        .slide-list {
-            display: flex;
-            flex-wrap: wrap;
+        :root {
+            --bg: #f6f2ea;
+            --panel: #fffdf8;
+            --ink: #1f211d;
+            --muted: #777267;
+            --line: #ddd4c4;
+            --line-strong: #c7baa6;
+            --accent: #285c4d;
+            --accent-strong: #143f35;
+            --accent-soft: rgba(40, 92, 77, 0.08);
+            --danger: #9b3b2f;
+            --shadow: 0 12px 28px rgba(54, 46, 34, 0.08);
+            --card-shadow: 0 4px 16px rgba(54, 46, 34, 0.06);
         }
 
-        .slide-item {
-            width: 200px;
-            height: 150px;
-            margin: 10px;
-            border: 1px solid #ccc;
-            position: relative;
-            text-align: center;
-            font-size: 18px;
-            cursor: pointer;
-            display: flex; /* 使用 Flex 布局 */
-            flex-direction: column;
-            justify-content: center; /* 垂直居中 */
-            overflow: hidden; /* 隐藏溢出内容 */
-            padding: 10px; /* 添加内边距 */
-            box-sizing: border-box; /* 使 padding 计入总高度 */
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: ui-serif, Georgia, "Songti SC", "Noto Serif CJK SC", serif;
+            color: var(--ink);
+            background:
+                linear-gradient(90deg, rgba(40, 92, 77, 0.06) 1px, transparent 1px),
+                linear-gradient(180deg, rgba(40, 92, 77, 0.045) 1px, transparent 1px),
+                var(--bg);
+            background-size: 22px 22px;
         }
 
-        /* 更新点击区域的样式 */
-        .slide-item > div[onclick] {
-            flex: 1;
+        button, input { font: inherit; }
+        button { cursor: pointer; }
+        svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+        .page {
+            width: min(1480px, calc(100vw - 36px));
+            margin: 0 auto;
+            padding: 18px 0 34px;
+        }
+
+        .topbar {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 18px;
+            align-items: end;
+            border-bottom: 1px solid var(--line);
+            padding-bottom: 14px;
+            margin-bottom: 14px;
+        }
+
+        h1 {
+            margin: 0 0 6px;
+            font-size: 30px;
+            line-height: 1.05;
+            letter-spacing: 0;
+        }
+
+        .stats { color: var(--muted); font-size: 13px; }
+        .actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+
+        .new-category {
             display: flex;
-            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            box-shadow: var(--card-shadow);
+            padding: 6px;
+        }
+
+        .new-category input,
+        .category-name {
+            width: 170px;
+            border: 1px solid transparent;
+            background: transparent;
+            color: var(--ink);
+            padding: 7px 8px;
+            outline: none;
+        }
+
+        .new-category input:focus,
+        .category-name:focus {
+            border-color: var(--accent);
+            background: #fff;
+        }
+
+        .btn,
+        .icon-btn,
+        .sort-btn {
+            border: 1px solid var(--line-strong);
+            background: var(--panel);
+            color: var(--accent-strong);
+            min-height: 34px;
+            transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+        }
+
+        .btn { padding: 0 12px; font-size: 13px; }
+        .icon-btn, .sort-btn {
+            width: 34px;
+            display: inline-flex;
+            align-items: center;
             justify-content: center;
+            text-decoration: none;
         }
 
-        /* 更新标题样式 */
-        .slide-item > div[onclick] > span.title-text {
-            overflow-wrap: break-word; /* 自动换行 */
-            word-break: break-all; /* 强制换行 */
-            display: -webkit-box; /* 兼容 WebKit 内核的浏览器 */
-            -webkit-line-clamp: 3; /* 显示最多 3 行 */
-            -webkit-box-orient: vertical;
-            overflow: hidden; /* 超出部分隐藏 */
-            text-overflow: ellipsis; /* 显示省略号 */
+        .btn:hover,
+        .icon-btn:hover,
+        .sort-btn:hover,
+        .sort-btn.active {
+            background: var(--accent-soft);
+            border-color: var(--accent);
         }
 
-        .slide-item .title {
-            position: absolute;
-            bottom: 5px;
-            left: 0;
+        .create-slide {
+            background: var(--accent);
+            color: #fffdf8;
+            border-color: var(--accent);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 48px;
+            padding: 0 18px;
+            font-size: 15px;
+        }
+
+        .create-slide:hover { background: var(--accent-strong); }
+
+        .sortbar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin: 0 0 14px;
+        }
+
+        .sort-label {
+            color: var(--muted);
+            font-size: 12px;
+            margin-right: 2px;
+        }
+
+        .board {
+            display: grid;
+            gap: 12px;
+        }
+
+        .lane {
+            display: grid;
+            grid-template-columns: 210px minmax(0, 1fr);
+            min-height: 178px;
+            background: rgba(255, 253, 248, 0.72);
+            border: 1px solid var(--line);
+            box-shadow: var(--shadow);
+        }
+
+        .lane.is-dragover {
+            border-color: var(--accent);
+            background: rgba(255, 253, 248, 0.94);
+        }
+
+        .lane-header {
+            position: relative;
+            display: grid;
+            align-content: start;
+            gap: 10px;
+            border-right: 1px solid var(--line);
+            background: rgba(255, 253, 248, 0.88);
+            padding: 14px 14px 44px;
+        }
+
+        .lane-kicker {
+            color: var(--muted);
+            font-size: 11px;
+            line-height: 1;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .category-name {
             width: 100%;
+            min-height: 34px;
+            padding: 7px 9px;
+            border-left: 3px solid var(--accent);
+            background: var(--accent-soft);
+            color: var(--accent-strong);
+            font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
             font-size: 14px;
-            line-height: normal;
-            text-align: center;
+            font-weight: 650;
+            line-height: 1.2;
+            letter-spacing: 0;
+            overflow-wrap: anywhere;
         }
 
-        .slide-item.new-slide {
-            background-color: #f0f0f0;
-            font-weight: bold;
-        }
-
-        /* 删除按钮的样式 */
-        .delete-button {
+        .category-name[readonly] { pointer-events: none; }
+        .slide-count { color: var(--muted); font-size: 12px; }
+        .drag-note { color: var(--muted); font-size: 12px; line-height: 1.4; }
+        .category-tools {
             position: absolute;
-            top: 5px;
-            right: 5px;
-            background-color: transparent;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-            color: black;
+            right: 10px;
+            bottom: 10px;
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        .category-tools .icon-btn {
+            width: 24px;
+            min-height: 24px;
+            border-color: transparent;
+            background: transparent;
+            color: rgba(155, 59, 47, 0.55);
+            opacity: 0.72;
+        }
+        .category-tools .icon-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+        .category-tools .danger:hover {
+            opacity: 1;
+            color: var(--danger);
+            border-color: rgba(155, 59, 47, 0.28);
+            background: rgba(155, 59, 47, 0.06);
         }
 
-        /* 注销按钮的样式 */
-        .logout-button {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background-color: gray;
-            border: none;
-            color: #ffffff;
-            padding: 10px 15px;
-            font-size: 14px;
-            cursor: pointer;
-            border-radius: 0; /* 去除圆角，方角样式 */
+        .lane-body {
+            min-height: 176px;
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
+            overflow-x: auto;
+            padding: 8px;
         }
 
-        .logout-button:hover {
-            background-color: gray; /* 保持灰色，风格统一 */
+        .slide-card {
+            position: relative;
+            flex: 0 0 238px;
+            display: grid;
+            grid-template-rows: minmax(76px, auto) auto;
+            gap: 14px;
+            min-height: 154px;
+            padding: 14px;
+            border: 1px solid var(--line);
+            background: var(--panel);
+            box-shadow: var(--card-shadow);
+            cursor: grab;
+            transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
         }
 
-        /* 锁图标的样式 */
-        .lock-button {
-            position: absolute;
-            top: 5px;
-            left: 5px; /* 左上角对齐 */
-            background-color: transparent; /* 移除背景 */
-            border: none; /* 移除边框 */
-            cursor: pointer;
+        body[data-sort-mode]:not([data-sort-mode="manual"]) .slide-card {
+            cursor: default;
+        }
+
+        .slide-card:hover {
+            transform: translateY(-1px);
+            border-color: var(--line-strong);
+            box-shadow: 0 10px 24px rgba(54, 46, 34, 0.1);
+        }
+
+        .slide-card.dragging { opacity: 0.42; transform: rotate(0.6deg); }
+        .slide-link { color: inherit; text-decoration: none; min-width: 0; }
+
+        .slide-title {
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 3;
+            overflow: hidden;
+            overflow-wrap: anywhere;
+            font-size: 18px;
+            line-height: 1.22;
+            font-weight: 700;
+        }
+
+        .slide-meta {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 10px;
+            align-items: end;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .card-actions { display: flex; gap: 4px; align-items: center; }
+        .card-actions .icon-btn { width: 28px; min-height: 28px; border-color: transparent; background: transparent; color: var(--muted); }
+        .card-actions .icon-btn:hover { color: var(--accent-strong); border-color: var(--line); background: var(--accent-soft); }
+        .card-actions .danger:hover { color: var(--danger); border-color: rgba(155, 59, 47, 0.35); background: rgba(155, 59, 47, 0.08); }
+
+        .empty-lane {
+            min-width: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px dashed var(--line-strong);
+            color: var(--muted);
+            font-size: 13px;
+            background: rgba(255, 253, 248, 0.42);
+        }
+
+        .logout-form { position: fixed; right: 18px; bottom: 18px; }
+        .logout-form .btn { background: rgba(255, 253, 248, 0.9); box-shadow: var(--card-shadow); }
+
+        .category-dialog {
+            width: min(460px, calc(100vw - 36px));
+            border: 1px solid var(--line-strong);
+            background: var(--panel);
+            color: var(--ink);
+            box-shadow: 0 24px 70px rgba(54, 46, 34, 0.26);
             padding: 0;
         }
 
-        .lock-button svg {
-            width: 16px; /* 锁图标的大小 */
-            height: 16px;
-            color: #333;
-            transition: color 0.3s ease;
+        .category-dialog::backdrop {
+            background: rgba(31, 33, 29, 0.28);
+            backdrop-filter: blur(2px);
         }
 
-        .lock-button:hover svg {
-            color: #000; /* 悬停时的颜色变化 */
+        .dialog-body {
+            padding: 20px;
+        }
+
+        .dialog-title {
+            margin: 0 0 8px;
+            font-size: 21px;
+            line-height: 1.2;
+        }
+
+        .dialog-copy {
+            margin: 0;
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.55;
+        }
+
+        .dialog-actions {
+            display: grid;
+            gap: 8px;
+            padding: 0 20px 20px;
+        }
+
+        .dialog-actions .btn {
+            width: 100%;
+            min-height: 40px;
+            text-align: left;
+        }
+
+        .dialog-actions .danger {
+            color: var(--danger);
+            border-color: rgba(155, 59, 47, 0.35);
+        }
+
+        .dialog-actions .danger:hover {
+            background: rgba(155, 59, 47, 0.08);
+        }
+
+        @media (max-width: 860px) {
+            .page { width: min(100vw - 20px, 640px); }
+            .topbar { grid-template-columns: 1fr; align-items: stretch; }
+            .actions, .new-category { width: 100%; justify-content: stretch; }
+            .new-category input { flex: 1; width: auto; }
+            .lane { grid-template-columns: 1fr; }
+            .lane-header { border-right: 0; border-bottom: 1px solid var(--line); }
+            .lane-body { min-height: 172px; }
         }
     </style>
 </head>
-<body>
-<h1></h1>
-<div class="slide-list">
-    <!-- 新建幻灯片的入口 -->
-    <div class="slide-item new-slide" onclick="location.href='{% url 'create_slide' %}'">
-        新建幻灯片
-    </div>
-    <!-- 展示已有的幻灯片 -->
-    {% for slide in slides %}
-        <div class="slide-item">
-            <button class="lock-button" onclick="toggleLock({{ slide.id }}, {{ slide.lock|yesno:'true,false' }})">
-                {% if slide.lock %}
-                    <!-- 锁定状态的SVG图标 -->
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                         stroke-linecap="round" stroke-linejoin="round" class="icon-lock">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                    </svg>
-                {% else %}
-                    <!-- 解锁状态的SVG图标 -->
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                         stroke-linecap="round" stroke-linejoin="round" class="icon-unlock">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                        <path d="M7 11V7a5 5 0 0 1 10 0"></path>
-                    </svg>
-                {% endif %}
-            </button>
-            <!-- 删除按钮 -->
-            <button class="delete-button" onclick="confirmDelete({{ slide.id }})">&times;</button>
-            <!-- 点击幻灯片区域进入编辑 -->
-            <div onclick="location.href='{% url 'edit_slide' slide.id %}'" style="height: 100%;">
-                {{ slide.title }}
-                <div class="title">{{ slide.created_at|date:"Y-m-d H:i" }}</div>
-            </div>
+<body data-sort-mode="{{ sort }}">
+<main class="page">
+    <header class="topbar">
+        <div>
+            <h1>Slides</h1>
+            <div class="stats">{{ total_slides }} slides · {{ total_categories }} categories</div>
         </div>
-    {% endfor %}
-</div>
+        <div class="actions">
+            <form class="new-category" id="new-category-form">
+                {% csrf_token %}
+                <input type="text" name="name" maxlength="100" placeholder="新建分类">
+                <button class="btn" type="submit">创建</button>
+            </form>
+            <a class="create-slide" href="{% url 'create_slide' %}">
+                <svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                新建幻灯片
+            </a>
+        </div>
+    </header>
 
-<!-- 注销按钮 -->
-<form method="post" action="{% url 'logout' %}">
+    <nav class="sortbar" aria-label="排序">
+        <span class="sort-label">排序</span>
+        <a class="sort-btn {% if sort == 'manual' %}active{% endif %}" href="?sort=manual" title="手动排序">
+            <svg viewBox="0 0 24 24"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>
+        </a>
+        <a class="sort-btn {% if sort == 'updated_desc' %}active{% endif %}" href="?sort=updated_desc" title="修改时间：从晚到早">
+            <svg viewBox="0 0 24 24"><path d="M12 8v5l3 2"/><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/><path d="M7 21h8"/><path d="M11 17l4 4 4-4"/></svg>
+        </a>
+        <a class="sort-btn {% if sort == 'updated_asc' %}active{% endif %}" href="?sort=updated_asc" title="修改时间：从早到晚">
+            <svg viewBox="0 0 24 24"><path d="M12 8v5l3 2"/><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/><path d="M7 17h8"/><path d="M11 21l4-4 4 4"/></svg>
+        </a>
+        <a class="sort-btn {% if sort == 'created_desc' %}active{% endif %}" href="?sort=created_desc" title="创建时间：从晚到早">
+            <svg viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><path d="M3 10h18"/><path d="M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2"/><path d="M8 17h8"/><path d="M12 13l4 4 4-4"/></svg>
+        </a>
+        <a class="sort-btn {% if sort == 'created_asc' %}active{% endif %}" href="?sort=created_asc" title="创建时间：从早到晚">
+            <svg viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><path d="M3 10h18"/><path d="M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2"/><path d="M8 13h8"/><path d="M12 17l4-4 4 4"/></svg>
+        </a>
+    </nav>
+
+    <section class="board" aria-label="slides">
+        <section class="lane" data-category-id="uncategorized">
+            <header class="lane-header">
+                <div class="lane-kicker">Inbox</div>
+                <input class="category-name" value="未分类" readonly>
+                <div class="slide-count">{{ uncategorized_slides|length }} slides</div>
+                <div class="drag-note">{% if sort == 'manual' %}可拖动整理{% else %}当前按时间排序{% endif %}</div>
+            </header>
+            <div class="lane-body" data-dropzone>
+                {% for slide in uncategorized_slides %}
+                    <article class="slide-card" draggable="{% if sort == 'manual' %}true{% else %}false{% endif %}" data-slide-id="{{ slide.id }}">
+                        <a class="slide-link" href="{% url 'edit_slide' slide.id %}"><div class="slide-title">{{ slide.title }}</div></a>
+                        <div class="slide-meta">
+                            <div>创建 {{ slide.created_at|date:"Y-m-d H:i" }}<br>修改 {{ slide.updated_at|date:"Y-m-d H:i" }}</div>
+                            <div class="card-actions">
+                                <button class="icon-btn" type="button" title="{% if slide.lock %}锁定{% else %}公开{% endif %}" onclick="toggleLock({{ slide.id }})">
+                                    {% if slide.lock %}
+                                        <svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+                                    {% else %}
+                                        <svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.2-2.4"/></svg>
+                                    {% endif %}
+                                </button>
+                                <button class="icon-btn danger" type="button" title="删除" onclick="confirmDelete({{ slide.id }})">
+                                    <svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 15H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </article>
+                {% empty %}
+                    <div class="empty-lane">空</div>
+                {% endfor %}
+            </div>
+        </section>
+
+        {% for category in category_sections %}
+            <section class="lane" data-category-id="{{ category.id }}">
+                <header class="lane-header">
+                    <form class="rename-category-form" data-category-id="{{ category.id }}">
+                        {% csrf_token %}
+                        <div class="lane-kicker">Category</div>
+                        <input class="category-name" name="name" maxlength="100" value="{{ category.name }}" title="重命名">
+                    </form>
+                    <div class="category-tools">
+                        <button
+                            class="icon-btn danger delete-category-button"
+                            type="button"
+                            title="删除分类"
+                            data-category-id="{{ category.id }}"
+                            data-category-name="{{ category.name }}"
+                            data-slide-count="{{ category.slides|length }}"
+                        >
+                            <svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 15H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                        </button>
+                    </div>
+                    <div class="slide-count">{{ category.slides|length }} slides</div>
+                    <div class="drag-note">{% if sort == 'manual' %}可拖动整理{% else %}当前按时间排序{% endif %}</div>
+                </header>
+                <div class="lane-body" data-dropzone>
+                    {% for slide in category.slides %}
+                        <article class="slide-card" draggable="{% if sort == 'manual' %}true{% else %}false{% endif %}" data-slide-id="{{ slide.id }}">
+                            <a class="slide-link" href="{% url 'edit_slide' slide.id %}"><div class="slide-title">{{ slide.title }}</div></a>
+                            <div class="slide-meta">
+                                <div>创建 {{ slide.created_at|date:"Y-m-d H:i" }}<br>修改 {{ slide.updated_at|date:"Y-m-d H:i" }}</div>
+                                <div class="card-actions">
+                                    <button class="icon-btn" type="button" title="{% if slide.lock %}锁定{% else %}公开{% endif %}" onclick="toggleLock({{ slide.id }})">
+                                        {% if slide.lock %}
+                                            <svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+                                        {% else %}
+                                            <svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.2-2.4"/></svg>
+                                        {% endif %}
+                                    </button>
+                                    <button class="icon-btn danger" type="button" title="删除" onclick="confirmDelete({{ slide.id }})">
+                                        <svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 15H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </article>
+                    {% empty %}
+                        <div class="empty-lane">空</div>
+                    {% endfor %}
+                </div>
+            </section>
+        {% endfor %}
+    </section>
+</main>
+
+<form class="logout-form" method="post" action="{% url 'logout' %}">
     {% csrf_token %}
-    <button type="submit" class="logout-button">注销</button>
+    <button type="submit" class="btn">注销</button>
 </form>
 
-<!-- 添加 JavaScript 代码 -->
-<script>
-    function confirmDelete(slideId) {
-        if (confirm('您确定要删除这张幻灯片吗？此操作无法撤销。')) {
-            // 发送删除请求
-            fetch('/delete/' + slideId + '/', {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': getCookie('csrftoken'),
-                },
-            })
-                .then(response => {
-                    if (response.ok) {
-                        // 删除成功，刷新页面
-                        location.reload();
-                    } else {
-                        alert('删除失败');
-                    }
-                })
-                .catch(error => {
-                    console.error('删除失败', error);
-                    alert('删除失败');
-                });
-        }
-    }
+<dialog class="category-dialog" id="delete-category-dialog">
+    <div class="dialog-body">
+        <h2 class="dialog-title">删除分类</h2>
+        <p class="dialog-copy" id="delete-category-copy"></p>
+    </div>
+    <div class="dialog-actions">
+        <button class="btn" type="button" data-delete-action="uncategorize">归档为未分类</button>
+        <button class="btn danger" type="button" data-delete-action="delete_slides">删除分类和其中的幻灯片</button>
+        <button class="btn" type="button" data-delete-action="cancel">取消</button>
+    </div>
+</dialog>
 
-    // 获取 CSRF token 的函数
+<script>
+    const isManualSort = '{{ sort }}' === 'manual';
+    let draggedCard = null;
+    let draggedFromLane = null;
+
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
-            let cookies = document.cookie.split(';');
+            const cookies = document.cookie.split(';');
             for (let i = 0; i < cookies.length; i++) {
-                let cookie = cookies[i].trim();
-                // 检查这个 cookie 字符串是否以我们想要的名字开头
+                const cookie = cookies[i].trim();
                 if (cookie.substring(0, name.length + 1) === (name + '=')) {
                     cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
                     break;
@@ -200,26 +529,192 @@
         return cookieValue;
     }
 
-    function toggleLock(slideId, isLocked) {
-        fetch('/toggle_lock/' + slideId + '/', {
+    function postForm(url, formData) {
+        return fetch(url, { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') }, body: formData });
+    }
+
+    function postJson(url, payload) {
+        return fetch(url, {
             method: 'POST',
-            headers: {
-                'X-CSRFToken': getCookie('csrftoken'),
-            },
-        })
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify(payload),
+        });
+    }
+
+    function confirmDelete(slideId) {
+        if (!confirm('确定删除这张幻灯片吗？')) return;
+        fetch('/delete/' + slideId + '/', { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') } })
+            .then(response => response.ok ? location.reload() : alert('删除失败'))
+            .catch(() => alert('删除失败'));
+    }
+
+    function toggleLock(slideId) {
+        fetch('/toggle_lock/' + slideId + '/', { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') } })
+            .then(response => response.ok ? location.reload() : alert('操作失败'))
+            .catch(() => alert('操作失败'));
+    }
+
+    function deleteCategory(categoryId, action) {
+        const formData = new FormData();
+        formData.append('action', action);
+        postForm('/categories/' + categoryId + '/delete/', formData).then(async response => {
+            if (response.ok) {
+                location.reload();
+                return;
+            }
+            const data = await response.json().catch(() => ({}));
+            alert(data.error || '删除分类失败');
+        }).catch(() => alert('删除分类失败'));
+    }
+
+    function refreshLane(lane) {
+        const dropzone = lane.querySelector('[data-dropzone]');
+        const empty = dropzone.querySelector('.empty-lane');
+        const cards = dropzone.querySelectorAll('.slide-card');
+        if (empty && cards.length > 0) empty.remove();
+        const count = lane.querySelector('.slide-count');
+        if (count) count.textContent = cards.length + ' slides';
+    }
+
+    function saveLane(lane) {
+        const slideIds = Array.from(lane.querySelectorAll('.slide-card')).map(card => card.dataset.slideId);
+        return postJson('{% url "reorder_slides" %}', { category_id: lane.dataset.categoryId, slide_ids: slideIds })
             .then(response => {
-                if (response.ok) {
-                    // 切换成功，刷新页面
-                    location.reload();
-                } else {
-                    alert('操作失败');
-                }
+                if (!response.ok) throw new Error('保存排序失败');
+                refreshLane(lane);
             })
-            .catch(error => {
-                console.error('操作失败', error);
-                alert('操作失败');
+            .catch(() => {
+                alert('保存排序失败');
+                location.reload();
             });
     }
+
+    function getInsertBeforeElement(dropzone, pointerX) {
+        const cards = Array.from(dropzone.querySelectorAll('.slide-card:not(.dragging)'));
+        return cards.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = pointerX - box.left - box.width / 2;
+            if (offset < 0 && offset > closest.offset) return { offset, element: child };
+            return closest;
+        }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
+    }
+
+    if (isManualSort) {
+        document.querySelectorAll('.slide-card').forEach(card => {
+            card.addEventListener('dragstart', event => {
+                draggedCard = card;
+                draggedFromLane = card.closest('.lane');
+                card.classList.add('dragging');
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', card.dataset.slideId);
+            });
+
+            card.addEventListener('dragend', () => {
+                document.querySelectorAll('.lane.is-dragover').forEach(lane => lane.classList.remove('is-dragover'));
+                if (draggedCard) draggedCard.classList.remove('dragging');
+                draggedCard = null;
+                draggedFromLane = null;
+            });
+        });
+
+        document.querySelectorAll('.lane').forEach(lane => {
+            const dropzone = lane.querySelector('[data-dropzone]');
+            lane.addEventListener('dragover', event => {
+                if (!draggedCard) return;
+                event.preventDefault();
+                lane.classList.add('is-dragover');
+                const before = getInsertBeforeElement(dropzone, event.clientX);
+                const empty = dropzone.querySelector('.empty-lane');
+                if (empty) empty.remove();
+                dropzone.insertBefore(draggedCard, before);
+            });
+            lane.addEventListener('dragleave', event => {
+                if (!lane.contains(event.relatedTarget)) lane.classList.remove('is-dragover');
+            });
+            lane.addEventListener('drop', event => {
+                event.preventDefault();
+                lane.classList.remove('is-dragover');
+                if (!draggedCard) return;
+                const fromLane = draggedFromLane;
+                const saves = [saveLane(lane)];
+                if (fromLane && fromLane !== lane) {
+                    refreshLane(fromLane);
+                    saves.push(saveLane(fromLane));
+                }
+                Promise.all(saves);
+            });
+        });
+    }
+
+    document.getElementById('new-category-form').addEventListener('submit', event => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        postForm('{% url "create_category" %}', new FormData(form)).then(async response => {
+            if (response.ok) return location.reload();
+            const data = await response.json().catch(() => ({}));
+            alert(data.error || '创建失败');
+        }).catch(() => alert('创建失败'));
+    });
+
+    document.querySelectorAll('.rename-category-form').forEach(form => {
+        const input = form.querySelector('input');
+        let lastValue = input.value;
+        function submitRename() {
+            if (input.value.trim() === lastValue) return;
+            postForm('/categories/' + form.dataset.categoryId + '/rename/', new FormData(form)).then(async response => {
+                if (response.ok) {
+                    lastValue = input.value.trim();
+                    return;
+                }
+                const data = await response.json().catch(() => ({}));
+                alert(data.error || '重命名失败');
+                input.value = lastValue;
+            }).catch(() => {
+                alert('重命名失败');
+                input.value = lastValue;
+            });
+        }
+        form.addEventListener('submit', event => {
+            event.preventDefault();
+            submitRename();
+        });
+        input.addEventListener('blur', submitRename);
+    });
+
+    const deleteCategoryDialog = document.getElementById('delete-category-dialog');
+    const deleteCategoryCopy = document.getElementById('delete-category-copy');
+    let pendingDeleteCategoryId = null;
+
+    document.querySelectorAll('.delete-category-button').forEach(button => {
+        button.addEventListener('click', () => {
+            pendingDeleteCategoryId = button.dataset.categoryId;
+            const slideCount = Number(button.dataset.slideCount || 0);
+            if (slideCount === 0) {
+                deleteCategory(pendingDeleteCategoryId, 'uncategorize');
+                pendingDeleteCategoryId = null;
+                return;
+            }
+            deleteCategoryCopy.textContent = '分类“' + button.dataset.categoryName + '”中有 ' + slideCount + ' 张幻灯片。你可以只删除分类并把它们归档为未分类，也可以连同这些幻灯片一起删除。';
+            deleteCategoryDialog.showModal();
+        });
+    });
+
+    deleteCategoryDialog.querySelectorAll('[data-delete-action]').forEach(button => {
+        button.addEventListener('click', () => {
+            const action = button.dataset.deleteAction;
+            if (action === 'cancel') {
+                deleteCategoryDialog.close();
+                pendingDeleteCategoryId = null;
+                return;
+            }
+            if (!pendingDeleteCategoryId) {
+                return;
+            }
+            deleteCategoryDialog.close();
+            deleteCategory(pendingDeleteCategoryId, action);
+            pendingDeleteCategoryId = null;
+        });
+    });
 </script>
 </body>
 </html>

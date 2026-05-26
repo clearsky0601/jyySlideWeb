@@ -33,8 +33,20 @@
 <br><br>
 
 
+![codemirror-editor.gif](assets/codemirror-editor.gif)
+> CodeMirror 6 源码模式编辑器：采用高亮显示的 Markdown 源码视图代替普通文本输入框，提供更专业、流畅的代码编辑体验，对标题、粗体、链接、代码块、列表和分割线等进行视觉增强，同时保持 Markdown 语法可见，易于编辑。
+
+<br><br>
+
+
 ![img.png](staticfiles/img/public-mode.png)
 > 公开分享幻灯片：幻灯片默认需要密码才能访问，也可以设置成公开的来分享，在公开模式下幻灯片是只读的
+
+<br><br>
+
+
+![category-lanes.png](assets/category-lanes.png)
+> 幻灯片分类与拖拽排序：支持将幻灯片卡片分门别类整理（如 Inbox 和自定义分类），支持通过拖拽在不同分类栏之间移动卡片或在栏内调整显示顺序。
 
 
 # 快速安装
@@ -112,7 +124,7 @@ docker-compose up
 ## 编写幻灯片
 访问`http://localhost:10001/` ，点击`新建幻灯片`
 
-![index.png](staticfiles/img/index.png)
+![index.png](assets/category-lanes.png)
 
 可以看到我已经写好了两张教程幻灯片，基础语法可以直接配合幻灯片内容进行学习
 

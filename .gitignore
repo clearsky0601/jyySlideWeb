@@ -11,3 +11,5 @@ staticfiles/
 .claude/
 db.sqlite3
 QWEN.md
+.antigravitycli/
+CLAUDE.md

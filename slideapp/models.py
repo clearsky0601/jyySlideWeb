@@ -1,5 +1,6 @@
 # slideapp/models.py
 
+import hashlib
 from django.db import models
 from django.contrib.auth.models import User
 
@@ -33,9 +34,15 @@ class Slide(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     lock = models.BooleanField(default=True)
     version = models.IntegerField(default=0)
+    html_cache = models.TextField(blank=True, default='')
+    content_hash = models.CharField(max_length=32, blank=True, default='')
 
     class Meta:
         ordering = ('sort_order', '-updated_at', '-id')
+
+    @staticmethod
+    def compute_content_hash(content):
+        return hashlib.md5(content.encode('utf-8')).hexdigest()
 
     def extract_title_from_content(self):
         lines = self.content.split('\n')

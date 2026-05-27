@@ -1,12 +1,11 @@
-import os
 import json
-import tempfile
+import os
 import traceback
 import uuid
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Max
+from django.db.models import Max, Prefetch
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
@@ -14,7 +13,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from .models import Slide, SlideCategory
-from .src.converter import converter
+from .html_converter import convert_and_cache
 
 @login_required
 def upload_image(request):
@@ -63,9 +62,14 @@ def get_sort(request):
     return sort
 
 
-def get_slide_categories():
+def get_slide_categories(slide_ordering, slide_filter=None):
+    qs = Slide.objects.all()
+    if slide_filter:
+        qs = qs.filter(**slide_filter)
+    qs = qs.order_by(*slide_ordering)
     return (
         SlideCategory.objects
+        .prefetch_related(Prefetch('slides', queryset=qs, to_attr='prefetched_slides'))
         .order_by('position', 'name')
     )
 
@@ -74,7 +78,7 @@ def get_slide_categories():
 def index(request):
     sort = get_sort(request)
     slide_ordering = SORT_OPTIONS[sort]
-    categories = list(get_slide_categories())
+    categories = list(get_slide_categories(slide_ordering))
     uncategorized_slides = list(
         Slide.objects.filter(category_ref__isnull=True).order_by(*slide_ordering)
     )
@@ -82,7 +86,7 @@ def index(request):
         {
             'id': category.id,
             'name': category.name,
-            'slides': list(category.slides.all().order_by(*slide_ordering)),
+            'slides': category.prefetched_slides,
         }
         for category in categories
     ]
@@ -200,11 +204,14 @@ def delete_category(request, category_id):
         slide_count = category.slides.count()
         if action == 'uncategorize':
             next_order = (Slide.objects.filter(category_ref__isnull=True).aggregate(Max('sort_order'))['sort_order__max'] or 0) + 1
+            to_update = []
             for offset, slide in enumerate(category.slides.order_by('sort_order', '-updated_at', '-id')):
                 slide.category_ref = None
                 slide.category = ''
                 slide.sort_order = next_order + offset
-                slide.save(update_fields=['category_ref', 'category', 'sort_order', 'updated_at'])
+                to_update.append(slide)
+            if to_update:
+                Slide.objects.bulk_update(to_update, ['category_ref', 'category', 'sort_order'])
         else:
             category.slides.all().delete()
 
@@ -239,6 +246,7 @@ def reorder_slides(request):
 
     with transaction.atomic():
         slides = {slide.id: slide for slide in Slide.objects.filter(id__in=clean_ids)}
+        to_update = []
         for position, slide_id in enumerate(clean_ids):
             slide = slides.get(slide_id)
             if not slide:
@@ -246,7 +254,9 @@ def reorder_slides(request):
             slide.category_ref = category
             slide.category = category.name if category else ''
             slide.sort_order = position
-            slide.save(update_fields=['category_ref', 'category', 'sort_order', 'updated_at'])
+            to_update.append(slide)
+        if to_update:
+            Slide.objects.bulk_update(to_update, ['category_ref', 'category', 'sort_order'])
 
     return JsonResponse({'status': 'success'})
 
@@ -254,7 +264,8 @@ def reorder_slides(request):
 def public_slides(request):
     sort = get_sort(request)
     slide_ordering = SORT_OPTIONS[sort]
-    categories = list(SlideCategory.objects.filter(slides__lock=False).distinct().order_by('position', 'name'))
+    categories = list(get_slide_categories(slide_ordering, slide_filter={'lock': False}))
+    categories = [c for c in categories if c.prefetched_slides]
     uncategorized_slides = list(
         Slide.objects.filter(lock=False, category_ref__isnull=True).order_by(*slide_ordering)
     )
@@ -262,7 +273,7 @@ def public_slides(request):
         {
             'id': category.id,
             'name': category.name,
-            'slides': list(category.slides.filter(lock=False).order_by(*slide_ordering)),
+            'slides': category.prefetched_slides,
         }
         for category in categories
     ]
@@ -279,31 +290,10 @@ def public_slides(request):
 def public_edit_slide(request, slide_id):
     slide = get_object_or_404(Slide, id=slide_id, lock=False)
 
-    # 转换Markdown为HTML
-    slide_html = convert_markdown_to_html(slide.content)
-
-    return render(request, 'public_edit_slide.html', {'slide': slide, 'slide_html': slide_html})
-
-
-def convert_markdown_to_html(markdown_content):
     try:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_md_file_path = os.path.join(temp_dir, 'temp.md')
-            with open(temp_md_file_path, 'w', encoding='utf-8') as temp_md_file:
-                temp_md_file.write(markdown_content)
-
-            # 调用转换器
-            converter(temp_md_file_path)
-
-            output_html_path = os.path.join(temp_dir, 'dist', 'index.html')
-            with open(output_html_path, 'r', encoding='utf-8') as html_file:
-                html_content = html_file.read()
-
-            html_content = html_content.replace('./static/', '/static/')
-            html_content = html_content.replace('./img/', '/static/img/')
-
-            return html_content
+        slide_html = convert_and_cache(slide, slide.content)
     except Exception as e:
         error_message = ''.join(traceback.format_exception_only(type(e), e))
-        print(f"转换失败: {error_message}")
-        return f"<p>转换失败: {error_message}</p>"
+        slide_html = f"<p>转换失败: {error_message}</p>"
+
+    return render(request, 'public_edit_slide.html', {'slide': slide, 'slide_html': slide_html})

@@ -111,7 +111,6 @@
 </div>
 
 {% load static %}
-<script src="{% static 'js/jquery-3.7.1.min.js' %}"></script>
 <script type="module">
     // --- CodeMirror 6 imports (local bundle) ---
     import {
@@ -265,6 +264,29 @@
         socket.send(JSON.stringify({'action': 'load'}));
     };
 
+    function updateIframePreview(html_content) {
+        var iframe = document.getElementById('preview-iframe');
+        if (iframe.contentWindow && iframe.contentWindow.Reveal && iframe.contentWindow.Reveal.getIndices) {
+            currentIndices = iframe.contentWindow.Reveal.getIndices();
+        }
+        iframe.contentDocument.open();
+        iframe.contentDocument.write(html_content);
+        iframe.contentDocument.close();
+        clearErrorMessage();
+        iframe.onload = function () {
+            function restoreSlide() {
+                if (iframe.contentWindow.Reveal && iframe.contentWindow.Reveal.isReady()) {
+                    iframe.contentWindow.Reveal.slide(currentIndices.h, currentIndices.v);
+                    iframe.contentWindow.Reveal.on('slidechanged', onRevealSlideChanged);
+                    navigateToSlide(lastSlideIndices.h, lastSlideIndices.v);
+                } else {
+                    setTimeout(restoreSlide, 50);
+                }
+            }
+            restoreSlide();
+        };
+    }
+
     socket.onmessage = function (e) {
         var data = JSON.parse(e.data);
         var action = data['action'];
@@ -281,10 +303,6 @@
             onCursorPositionChange();
 
         } else if (action === 'reload') {
-            var iframe = document.getElementById('preview-iframe');
-            if (iframe.contentWindow && iframe.contentWindow.Reveal && iframe.contentWindow.Reveal.getIndices) {
-                currentIndices = iframe.contentWindow.Reveal.getIndices();
-            }
             var cursorPos = getCursorPos();
             var scrollTop = cm.scrollDOM.scrollTop;
             setContent(data['content']);
@@ -297,27 +315,7 @@
 
         } else if (action === 'save_ok') {
             serverVersion = data['version'];
-            var html_content = data['html'];
-            var iframe = document.getElementById('preview-iframe');
-            if (iframe.contentWindow && iframe.contentWindow.Reveal && iframe.contentWindow.Reveal.getIndices) {
-                currentIndices = iframe.contentWindow.Reveal.getIndices();
-            }
-            iframe.contentDocument.open();
-            iframe.contentDocument.write(html_content);
-            iframe.contentDocument.close();
-            clearErrorMessage();
-            iframe.onload = function () {
-                function restoreSlide() {
-                    if (iframe.contentWindow.Reveal && iframe.contentWindow.Reveal.isReady()) {
-                        iframe.contentWindow.Reveal.slide(currentIndices.h, currentIndices.v);
-                        iframe.contentWindow.Reveal.on('slidechanged', onRevealSlideChanged);
-                        navigateToSlide(lastSlideIndices.h, lastSlideIndices.v);
-                    } else {
-                        setTimeout(restoreSlide, 50);
-                    }
-                }
-                restoreSlide();
-            };
+            updateIframePreview(data['html']);
             console.log('Save successful, version: ' + serverVersion);
 
         } else if (action === 'version_info') {
@@ -326,27 +324,7 @@
             }
 
         } else if (action === 'preview') {
-            var html_content = data['html'];
-            var iframe = document.getElementById('preview-iframe');
-            if (iframe.contentWindow && iframe.contentWindow.Reveal && iframe.contentWindow.Reveal.getIndices) {
-                currentIndices = iframe.contentWindow.Reveal.getIndices();
-            }
-            iframe.contentDocument.open();
-            iframe.contentDocument.write(html_content);
-            iframe.contentDocument.close();
-            clearErrorMessage();
-            iframe.onload = function () {
-                function restoreSlide() {
-                    if (iframe.contentWindow.Reveal && iframe.contentWindow.Reveal.isReady()) {
-                        iframe.contentWindow.Reveal.slide(currentIndices.h, currentIndices.v);
-                        iframe.contentWindow.Reveal.on('slidechanged', onRevealSlideChanged);
-                        navigateToSlide(lastSlideIndices.h, lastSlideIndices.v);
-                    } else {
-                        setTimeout(restoreSlide, 50);
-                    }
-                }
-                restoreSlide();
-            };
+            updateIframePreview(data['html']);
 
         } else if (action === 'error') {
             displayErrorMessage(data['message']);
@@ -357,13 +335,17 @@
         console.log('WebSocket 连接已关闭');
     };
 
+    var previewTimer = null;
     function sendPreview() {
-        if (socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({
-                'action': 'preview',
-                'markdown': getContent()
-            }));
-        }
+        if (previewTimer) clearTimeout(previewTimer);
+        previewTimer = setTimeout(function () {
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({
+                    'action': 'preview',
+                    'markdown': getContent()
+                }));
+            }
+        }, 400);
     }
 
     // --- Error display ---

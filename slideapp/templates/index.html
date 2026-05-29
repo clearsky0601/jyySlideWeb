@@ -62,7 +62,12 @@
         }
 
         .stats { color: var(--muted); font-size: 13px; }
-        .actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+        .actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: flex-end; }
+        .action-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .action-group + .action-group {
+            padding-left: 14px;
+            border-left: 1px solid var(--line);
+        }
 
         .new-category {
             display: flex;
@@ -91,8 +96,7 @@
         }
 
         .btn,
-        .icon-btn,
-        .sort-btn {
+        .icon-btn {
             border: 1px solid var(--line-strong);
             background: var(--panel);
             color: var(--accent-strong);
@@ -101,7 +105,7 @@
         }
 
         .btn { padding: 0 12px; font-size: 13px; }
-        .icon-btn, .sort-btn {
+        .icon-btn {
             width: 34px;
             display: inline-flex;
             align-items: center;
@@ -110,12 +114,21 @@
         }
 
         .btn:hover,
-        .icon-btn:hover,
-        .sort-btn:hover,
-        .sort-btn.active {
+        .icon-btn:hover {
             background: var(--accent-soft);
             border-color: var(--accent);
         }
+
+        /* 次级导航按钮：图标 + 文字 */
+        .nav-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 0 13px;
+            font-size: 13px;
+            text-decoration: none;
+        }
+        .nav-link svg { width: 15px; height: 15px; }
 
         .create-slide {
             background: var(--accent);
@@ -135,15 +148,61 @@
         .sortbar {
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 10px;
+            flex-wrap: wrap;
             margin: 0 0 14px;
         }
 
         .sort-label {
             color: var(--muted);
             font-size: 12px;
-            margin-right: 2px;
         }
+
+        /* 分段控件：字段选择 */
+        .segmented {
+            display: inline-flex;
+            align-items: stretch;
+            border: 1px solid var(--line-strong);
+            background: var(--panel);
+            overflow: hidden;
+        }
+
+        .segmented .seg {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0 13px;
+            min-height: 34px;
+            font-size: 13px;
+            color: var(--accent-strong);
+            text-decoration: none;
+            transition: background 0.15s ease, color 0.15s ease;
+        }
+
+        .segmented .seg + .seg { border-left: 1px solid var(--line-strong); }
+        .segmented .seg svg { width: 15px; height: 15px; }
+        .segmented .seg:hover { background: var(--accent-soft); }
+        .segmented .seg.active {
+            background: var(--accent);
+            color: #fffdf8;
+        }
+
+        /* 方向切换 */
+        .sort-dir {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0 13px;
+            min-height: 34px;
+            font-size: 13px;
+            color: var(--accent-strong);
+            text-decoration: none;
+            border: 1px solid var(--line-strong);
+            background: var(--panel);
+            transition: background 0.15s ease, border-color 0.15s ease;
+        }
+        .sort-dir svg { width: 15px; height: 15px; }
+        .sort-dir:hover { background: var(--accent-soft); border-color: var(--accent); }
 
         .board {
             display: grid;
@@ -301,8 +360,7 @@
             background: rgba(255, 253, 248, 0.42);
         }
 
-        .logout-form { position: fixed; right: 18px; bottom: 18px; }
-        .logout-form .btn { background: rgba(255, 253, 248, 0.9); box-shadow: var(--card-shadow); }
+        .logout-form { display: inline-flex; margin: 0; }
 
         .category-dialog {
             width: min(460px, calc(100vw - 36px));
@@ -359,7 +417,10 @@
         @media (max-width: 860px) {
             .page { width: min(100vw - 20px, 640px); }
             .topbar { grid-template-columns: 1fr; align-items: stretch; }
-            .actions, .new-category { width: 100%; justify-content: stretch; }
+            .actions { width: 100%; justify-content: flex-start; }
+            .action-group { flex: 1 1 auto; }
+            .action-group + .action-group { padding-left: 0; border-left: 0; }
+            .new-category { flex: 1; }
             .new-category input { flex: 1; width: auto; }
             .lane { grid-template-columns: 1fr; }
             .lane-header { border-right: 0; border-bottom: 1px solid var(--line); }
@@ -375,35 +436,66 @@
             <div class="stats">{{ total_slides }} slides · {{ total_categories }} categories</div>
         </div>
         <div class="actions">
-            <form class="new-category" id="new-category-form">
-                {% csrf_token %}
-                <input type="text" name="name" maxlength="100" placeholder="新建分类">
-                <button class="btn" type="submit">创建</button>
-            </form>
-            <a class="create-slide" href="{% url 'create_slide' %}">
-                <svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-                新建幻灯片
-            </a>
+            <div class="action-group">
+                <a class="btn nav-link" href="{% url 'public_slides' %}">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18"/></svg>
+                    公开幻灯片
+                </a>
+                <form class="logout-form" method="post" action="{% url 'logout' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn nav-link">
+                        <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+                        注销
+                    </button>
+                </form>
+            </div>
+            <div class="action-group">
+                <form class="new-category" id="new-category-form">
+                    {% csrf_token %}
+                    <input type="text" name="name" maxlength="100" placeholder="新建分类">
+                    <button class="btn" type="submit">创建</button>
+                </form>
+                <a class="create-slide" href="{% url 'create_slide' %}">
+                    <svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                    新建幻灯片
+                </a>
+            </div>
         </div>
     </header>
 
     <nav class="sortbar" aria-label="排序">
         <span class="sort-label">排序</span>
-        <a class="sort-btn {% if sort == 'manual' %}active{% endif %}" href="?sort=manual" title="手动排序">
-            <svg viewBox="0 0 24 24"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>
+        <div class="segmented">
+            <a class="seg {% if sort == 'manual' %}active{% endif %}" href="?sort=manual">
+                <svg viewBox="0 0 24 24"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>
+                手动
+            </a>
+            <a class="seg {% if sort == 'updated_desc' or sort == 'updated_asc' %}active{% endif %}" href="?sort=updated_desc">
+                <svg viewBox="0 0 24 24"><path d="M12 8v5l3 2"/><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
+                修改时间
+            </a>
+            <a class="seg {% if sort == 'created_desc' or sort == 'created_asc' %}active{% endif %}" href="?sort=created_desc">
+                <svg viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><path d="M3 10h18"/><path d="M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2"/></svg>
+                创建时间
+            </a>
+        </div>
+        {% if sort == 'updated_desc' %}
+        <a class="sort-dir" href="?sort=updated_asc" title="改为从早到晚">
+            <svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M6 13l6 6 6-6"/></svg>晚 → 早
         </a>
-        <a class="sort-btn {% if sort == 'updated_desc' %}active{% endif %}" href="?sort=updated_desc" title="修改时间：从晚到早">
-            <svg viewBox="0 0 24 24"><path d="M12 8v5l3 2"/><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/><path d="M7 21h8"/><path d="M11 17l4 4 4-4"/></svg>
+        {% elif sort == 'updated_asc' %}
+        <a class="sort-dir" href="?sort=updated_desc" title="改为从晚到早">
+            <svg viewBox="0 0 24 24"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg>早 → 晚
         </a>
-        <a class="sort-btn {% if sort == 'updated_asc' %}active{% endif %}" href="?sort=updated_asc" title="修改时间：从早到晚">
-            <svg viewBox="0 0 24 24"><path d="M12 8v5l3 2"/><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/><path d="M7 17h8"/><path d="M11 21l4-4 4 4"/></svg>
+        {% elif sort == 'created_desc' %}
+        <a class="sort-dir" href="?sort=created_asc" title="改为从早到晚">
+            <svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M6 13l6 6 6-6"/></svg>晚 → 早
         </a>
-        <a class="sort-btn {% if sort == 'created_desc' %}active{% endif %}" href="?sort=created_desc" title="创建时间：从晚到早">
-            <svg viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><path d="M3 10h18"/><path d="M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2"/><path d="M8 17h8"/><path d="M12 13l4 4 4-4"/></svg>
+        {% elif sort == 'created_asc' %}
+        <a class="sort-dir" href="?sort=created_desc" title="改为从晚到早">
+            <svg viewBox="0 0 24 24"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg>早 → 晚
         </a>
-        <a class="sort-btn {% if sort == 'created_asc' %}active{% endif %}" href="?sort=created_asc" title="创建时间：从早到晚">
-            <svg viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><path d="M3 10h18"/><path d="M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2"/><path d="M8 13h8"/><path d="M12 17l4-4 4 4"/></svg>
-        </a>
+        {% endif %}
     </nav>
 
     <section class="board" aria-label="slides">
@@ -491,11 +583,6 @@
         {% endfor %}
     </section>
 </main>
-
-<form class="logout-form" method="post" action="{% url 'logout' %}">
-    {% csrf_token %}
-    <button type="submit" class="btn">注销</button>
-</form>
 
 <dialog class="category-dialog" id="delete-category-dialog">
     <div class="dialog-body">

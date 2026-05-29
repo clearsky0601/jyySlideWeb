@@ -193,3 +193,129 @@ section .center {
     max-width: 100%;
     height: auto;
 }
+
+.reveal .admonition {
+    border-left: 5px solid var(--admonition-color, #2563eb);
+    background: var(--admonition-bg, #eff6ff);
+    padding: 0.65rem 1rem 0.65rem 1.1rem;
+    margin: 0.6rem 0;
+    border-radius: 4px;
+    font-family: 'Lato', 'STHeiti', 'SimHei', 'Sans Serif';
+}
+
+.reveal .admonition .admonition-title {
+    font-weight: 600;
+    font-size: 0.95em;
+    margin-bottom: 0.25rem;
+    color: var(--admonition-color, #2563eb);
+}
+
+.reveal .admonition .admonition-body > :first-child { margin-top: 0; }
+.reveal .admonition .admonition-body > :last-child { margin-bottom: 0; }
+
+.reveal .admonition-note    { --admonition-color: #2563eb; --admonition-bg: #eff6ff; }
+.reveal .admonition-tip     { --admonition-color: #2d6a3e; --admonition-bg: #e8f2ec; }
+.reveal .admonition-warning { --admonition-color: #b45309; --admonition-bg: #fffbeb; }
+.reveal .admonition-danger  { --admonition-color: #b91c1c; --admonition-bg: #fef2f2; }
+.reveal .admonition-success { --admonition-color: #16a34a; --admonition-bg: #f0fdf4; }
+
+.reveal .md-timeline {
+    --tl-color: rgb(106, 0, 95);
+    --tl-color-soft: rgba(106, 0, 95, 0.14);
+    --tl-line: rgba(106, 0, 95, 0.22);
+    --tl-date-col: 4.5em;
+    --tl-dot-col: 1.6rem;
+    --tl-row-pad: 0.3rem;
+
+    list-style: none;
+    padding: 0;
+    margin: 0.8rem 0;
+    position: relative;
+}
+
+/* Each li draws its own line segment as a background — start of line tracks
+   the dot's vertical center, so positioning stays correct regardless of
+   row height or font scaling. */
+.reveal .md-timeline > li {
+    display: grid;
+    grid-template-columns: var(--tl-date-col) var(--tl-dot-col) 1fr;
+    align-items: center;
+    padding: var(--tl-row-pad) 0;
+    margin: 0;
+    list-style: none;
+    background-image: linear-gradient(var(--tl-line), var(--tl-line));
+    background-size: 2px 100%;
+    background-repeat: no-repeat;
+    background-position: calc(var(--tl-date-col) + var(--tl-dot-col) / 2 - 1px) center;
+}
+
+/* Hide line above the first dot and below the last dot */
+.reveal .md-timeline > li:first-child {
+    background-image: linear-gradient(var(--tl-line), var(--tl-line));
+    background-size: 2px 50%;
+    background-position: calc(var(--tl-date-col) + var(--tl-dot-col) / 2 - 1px) bottom;
+}
+
+.reveal .md-timeline > li:last-child {
+    background-image: linear-gradient(var(--tl-line), var(--tl-line));
+    background-size: 2px 50%;
+    background-position: calc(var(--tl-date-col) + var(--tl-dot-col) / 2 - 1px) top;
+}
+
+/* Single-item timeline: no line at all */
+.reveal .md-timeline > li:first-child:last-child {
+    background-image: none;
+}
+
+.reveal .md-timeline > li::before {
+    content: '';
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: center;
+    align-self: center;
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 50%;
+    background: var(--tl-color);
+    box-shadow: 0 0 0 0.22rem var(--tl-color-soft);
+    position: relative;
+    z-index: 1;
+}
+
+/* last entry: bigger halo, signals "current / latest" */
+.reveal .md-timeline > li:last-child::before {
+    box-shadow: 0 0 0 0.32rem var(--tl-color-soft);
+}
+
+.reveal .md-timeline .timeline-date {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: end;
+    padding-right: 0.6rem;
+    color: var(--tl-color);
+    font-family: 'Inconsolata', 'JetBrains Mono', monospace;
+    font-weight: 600;
+    font-size: 0.88em;
+    letter-spacing: 0.02em;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+
+.reveal .md-timeline .timeline-event {
+    grid-column: 3;
+    grid-row: 1;
+    padding-left: 0.5rem;
+    font-family: 'Lato', 'STHeiti', 'SimHei', 'Sans Serif';
+    line-height: 1.5;
+}
+
+.reveal .task-list-item {
+    list-style: none;
+    margin-left: -1.5em;
+}
+
+.reveal .task-list-item input[type="checkbox"] {
+    margin-right: 0.4em;
+    transform: scale(1.2);
+    vertical-align: middle;
+}

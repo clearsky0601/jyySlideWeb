@@ -207,9 +207,226 @@ class ColumnsPlaceholderTests(SimpleTestCase):
         safe, placeholders = _protect_columns(md)
         self.assertEqual(len(placeholders), 1)
         # placeholder must be a single self-contained div
-        self.assertIn("data-cols-placeholder=", safe)
+        self.assertIn("data-md-directive=", safe)
         self.assertNotIn(":::", safe)
         # restore puts the actual columns HTML back
         restored = _restore_columns(safe, placeholders)
         self.assertIn('class="md-columns"', restored)
         self.assertIn('class="md-column"', restored)
+
+
+class AdmonitionTests(SimpleTestCase):
+    def test_each_kind_has_default_title_and_icon(self):
+        cases = [
+            ("note", "📝", "提示"),
+            ("tip", "💡", "技巧"),
+            ("warning", "⚠️", "警告"),
+            ("danger", "🚫", "危险"),
+            ("success", "✅", "成功"),
+        ]
+        for kind, icon, title in cases:
+            md = f"::: {kind}\nbody\n:::\n"
+            html = md_to_html(md)
+            self.assertIn(f"admonition-{kind}", html, kind)
+            self.assertIn(icon, html, kind)
+            self.assertIn(title, html, kind)
+            self.assertIn("body", html, kind)
+
+    def test_custom_title_overrides_default(self):
+        md = "::: warning 操作不可逆\n请三思\n:::\n"
+        html = md_to_html(md)
+        self.assertIn("操作不可逆", html)
+        self.assertNotIn("警告", html)
+
+    def test_admonition_body_renders_markdown(self):
+        md = "::: tip\n- one\n- two\n\n**bold** text\n:::\n"
+        html = md_to_html(md)
+        self.assertIn("<ul>", html)
+        self.assertIn("<li>one</li>", html)
+        self.assertIn("<strong>bold</strong>", html)
+
+    def test_unknown_directive_degrades(self):
+        md = "::: noexist\nbody\n:::\n"
+        html = md_to_html(md)
+        # the literal ::: text should pass through to the rendered HTML
+        self.assertIn(":::", html)
+        self.assertNotIn("admonition-", html)
+
+
+class NotesDirectiveTests(SimpleTestCase):
+    def test_renders_reveal_notes_aside(self):
+        md = "::: notes\n讲到这里提醒自己\n:::\n"
+        html = md_to_html(md)
+        self.assertIn('<aside class="notes">', html)
+        self.assertIn("讲到这里提醒自己", html)
+
+    def test_inner_markdown_rendered(self):
+        md = "::: notes\n- a\n- b\n:::\n"
+        html = md_to_html(md)
+        self.assertIn("<ul>", html)
+        self.assertIn("<li>a</li>", html)
+
+
+class IncrementalDirectiveTests(SimpleTestCase):
+    def test_each_li_gets_fragment_class(self):
+        md = "::: incremental\n- 一\n- 二\n- 三\n:::\n"
+        html = md_to_html(md)
+        self.assertEqual(html.count('class="fragment"'), 3)
+        self.assertIn('data-fragment-index="1"', html)
+        self.assertIn('data-fragment-index="2"', html)
+        self.assertIn('data-fragment-index="3"', html)
+
+    def test_non_list_body_does_not_raise(self):
+        md = "::: incremental\nnot a list\n:::\n"
+        html = md_to_html(md)
+        self.assertIn("not a list", html)
+        self.assertNotIn('class="fragment"', html)
+
+    def test_ordered_list_supported(self):
+        md = "::: incremental\n1. step one\n2. step two\n:::\n"
+        html = md_to_html(md)
+        self.assertEqual(html.count('class="fragment"'), 2)
+
+
+class TimelineDirectiveTests(SimpleTestCase):
+    def test_basic_three_items(self):
+        md = (
+            "::: timeline\n"
+            "- 2023.06: 立项\n"
+            "- 2024.01: MVP\n"
+            "- 2025.03: 大改版\n"
+            ":::\n"
+        )
+        html = md_to_html(md)
+        self.assertIn('class="md-timeline"', html)
+        self.assertEqual(html.count("timeline-date"), 3)
+        self.assertIn("2023.06", html)
+        self.assertIn("立项", html)
+
+    def test_chinese_full_width_colon_accepted(self):
+        md = "::: timeline\n- 2024：里程碑\n:::\n"
+        html = md_to_html(md)
+        self.assertIn("2024", html)
+        self.assertIn("里程碑", html)
+
+    def test_event_can_contain_markdown(self):
+        md = "::: timeline\n- 2024: **重大** [发布](https://example.com)\n:::\n"
+        html = md_to_html(md)
+        self.assertIn("<strong>重大</strong>", html)
+        self.assertIn("href=\"https://example.com\"", html)
+        # URL colon must not be picked as the separator
+        self.assertIn("2024", html)
+        self.assertNotIn(">https</span>", html)
+
+    def test_time_of_day_date_keeps_internal_colon(self):
+        # regression: `14:30: event` must parse as date=14:30 / event=event
+        md = "::: timeline\n- 14:30: 下午活动\n:::\n"
+        html = md_to_html(md)
+        self.assertIn(">14:30</span>", html)
+        self.assertIn(">下午活动</span>", html)
+
+    def test_event_starting_with_word_colon_value_is_not_eaten(self):
+        # regression: the markdown ``meta`` extension was silently swallowing
+        # any recursive call whose body started with ``Key: Value``.
+        md = "::: timeline\n- 14:30: 下午活动\n:::\n"
+        html = md_to_html(md)
+        # event must actually be rendered, not empty
+        self.assertIn(">下午活动</span>", html)
+
+
+class NestedDirectiveTests(SimpleTestCase):
+    def test_admonition_nested_in_admonition(self):
+        # regression: dict-iteration order in _restore_directives lost the
+        # inner placeholder after the outer one had been substituted.
+        md = (
+            "::: tip 外层\n"
+            "外层文字\n\n"
+            "::: warning 内层\n"
+            "内层文字\n"
+            ":::\n\n"
+            "回到外层\n"
+            ":::\n"
+        )
+        html = md_to_html(md)
+        self.assertIn("admonition-tip", html)
+        self.assertIn("admonition-warning", html)
+        # outer wraps inner
+        self.assertLess(html.find("admonition-tip"), html.find("admonition-warning"))
+        # no leftover placeholder div
+        self.assertNotIn("data-md-directive=", html)
+
+    def test_columns_nested_in_admonition(self):
+        md = (
+            "::: tip\n"
+            "::: columns 1/1\n"
+            "::: column\nA\n:::\n"
+            "::: column\nB\n:::\n"
+            ":::\n"
+            ":::\n"
+        )
+        html = md_to_html(md)
+        self.assertIn("admonition-tip", html)
+        self.assertIn("md-columns", html)
+        self.assertNotIn("data-md-directive=", html)
+
+
+class TierBExtensionTests(SimpleTestCase):
+    def test_footnote(self):
+        md = "结论需要引用[^1]。\n\n[^1]: 出处\n"
+        html = md_to_html(md)
+        self.assertIn("footnote", html)
+        self.assertIn("出处", html)
+
+    def test_def_list(self):
+        md = "RAG\n:   Retrieval-Augmented Generation\n"
+        html = md_to_html(md)
+        self.assertIn("<dl>", html)
+        self.assertIn("<dt>RAG</dt>", html)
+
+
+class TierCExtensionTests(SimpleTestCase):
+    def test_mark(self):
+        html = md_to_html("==高亮==文字")
+        self.assertIn("<mark>高亮</mark>", html)
+
+    def test_subscript(self):
+        html = md_to_html("H~2~O")
+        self.assertIn("<sub>2</sub>", html)
+
+    def test_superscript(self):
+        html = md_to_html("E=mc^2^")
+        self.assertIn("<sup>2</sup>", html)
+
+    def test_tasklist(self):
+        md = "- [x] done\n- [ ] todo\n"
+        html = md_to_html(md)
+        self.assertIn("task-list-item", html)
+
+    def test_emoji_renders_as_unicode(self):
+        html = md_to_html(":rocket: launch")
+        self.assertIn("🚀", html)
+        # ensure we did NOT fall back to the CDN image
+        self.assertNotIn("cdnjs.cloudflare.com", html)
+
+
+class DirectiveIsolationTests(SimpleTestCase):
+    """New directives must not fire inside code fences."""
+
+    def test_admonition_in_code_fence_is_literal(self):
+        md = "```text\n::: tip\nhello\n:::\n```\n"
+        html = md_to_html(md)
+        self.assertNotIn("admonition-tip", html)
+        self.assertIn("::: tip", html)
+
+    def test_columns_still_work_alongside_other_directives(self):
+        md = (
+            "::: tip\n小贴士\n:::\n"
+            "\n"
+            "::: columns 1/1\n"
+            "::: column\nleft\n:::\n"
+            "::: column\nright\n:::\n"
+            ":::\n"
+        )
+        html = md_to_html(md)
+        self.assertIn("admonition-tip", html)
+        self.assertIn("md-columns", html)

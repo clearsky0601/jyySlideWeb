@@ -1,6 +1,7 @@
 jinja2
 lxml
 markdown
+pymdown-extensions
 pygments
 pyquery
 pyyaml

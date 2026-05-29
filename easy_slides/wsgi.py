@@ -1,5 +1,5 @@
 """
-WSGI config for eazy_slides project.
+WSGI config for easy_slides project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 
@@ -11,6 +11,6 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "eazy_slides.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "easy_slides.settings")
 
 application = get_wsgi_application()

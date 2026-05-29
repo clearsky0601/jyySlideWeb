@@ -1,11 +1,11 @@
-# eazy_slides/asgi.py
+# easy_slides/asgi.py
 
 import os
 import django
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'eazy_slides.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'easy_slides.settings')
 django.setup()
 
 from slideapp.routing import websocket_urlpatterns

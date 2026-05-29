@@ -13,7 +13,7 @@ hiddenimports = (
     collect_submodules('django') +
     collect_submodules('channels') +
     collect_submodules('daphne') +
-    collect_submodules('eazy_slides') +
+    collect_submodules('easy_slides') +
     collect_submodules('slideapp') +
     collect_submodules('whitenoise')
 )
@@ -32,7 +32,7 @@ def add_data_dir(source_rel_path, target_rel_path):
 add_data_dir('slideapp/templates', 'slideapp/templates')
 add_data_dir('slideapp/src/static', 'slideapp/src/static')
 add_data_dir('slideapp/src/backup/template', 'slideapp/src/backup/template')
-add_data_dir('eazy_slides', 'eazy_slides')
+add_data_dir('easy_slides', 'easy_slides')
 
 # 添加收集后的静态文件目录
 add_data_dir('staticfiles', 'staticfiles')
@@ -77,7 +77,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='eazy_slides',  # 可执行文件名称
+    name='easy_slides',  # 可执行文件名称
     debug=False,
     strip=False,
     upx=True,
@@ -92,5 +92,5 @@ coll = COLLECT(
     a.datas,
     strip=False,
     upx=True,
-    name='eazy_slides'  # 输出文件夹名称
+    name='easy_slides'  # 输出文件夹名称
 )

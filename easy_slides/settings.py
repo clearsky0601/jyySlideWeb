@@ -79,11 +79,18 @@ WSGI_APPLICATION = "easy_slides.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        # SLIDES_DB lets tools (e.g. the slide_tui previewer) point the server
-        # at an alternate sqlite file. Unset → original behaviour (db.sqlite3).
+        "NAME": BASE_DIR / "db.sqlite3",
+    },
+    "slides": {
+        "ENGINE": "django.db.backends.sqlite3",
+        # SLIDES_DB lets tools (e.g. the slide_tui previewer and web switcher)
+        # point slide data at an alternate sqlite file. Auth/session stay on
+        # default so switching slide databases does not log the user out.
         "NAME": os.environ.get("SLIDES_DB") or (BASE_DIR / "db.sqlite3"),
-    }
+    },
 }
+
+DATABASE_ROUTERS = ["slideapp.db_router.SlideAppRouter"]
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators

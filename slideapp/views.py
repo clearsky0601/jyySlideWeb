@@ -1,10 +1,13 @@
 import json
 import os
+import sqlite3
 import traceback
 import uuid
+from pathlib import Path
 
 from django.conf import settings
-from django.db import transaction
+from django.contrib import messages
+from django.db import connections, transaction
 from django.db.models import Max, Prefetch
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
@@ -14,6 +17,105 @@ from django.views.decorators.http import require_POST
 
 from .models import Slide, SlideCategory
 from .html_converter import convert_and_cache
+
+BASE_DIR = Path(settings.BASE_DIR).resolve()
+DEFAULT_DB_NAME = 'db.sqlite3'
+REQUIRED_MANAGEMENT_COLUMNS = {
+    'id', 'title', 'content', 'created_at', 'updated_at', 'lock', 'version',
+    'category', 'category_ref_id', 'sort_order', 'html_cache', 'content_hash',
+}
+
+
+def display_db_name(path):
+    path = Path(path)
+    try:
+        return str(path.resolve().relative_to(BASE_DIR))
+    except ValueError:
+        return path.name
+
+
+def discover_db_paths():
+    found = []
+    seen = set()
+    for directory in (BASE_DIR, BASE_DIR / 'archive'):
+        if not directory.is_dir():
+            continue
+        for path in sorted(directory.glob('*.sqlite3')):
+            resolved = path.resolve()
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            found.append(resolved)
+
+    def sort_key(path):
+        is_default = path.name == DEFAULT_DB_NAME and path.parent == BASE_DIR
+        return (0 if is_default else 1, str(path))
+
+    return sorted(found, key=sort_key)
+
+
+def db_compatibility(path):
+    try:
+        conn = sqlite3.connect(path)
+        conn.row_factory = sqlite3.Row
+        slide_cols = {
+            row['name']
+            for row in conn.execute('PRAGMA table_info(slideapp_slide)').fetchall()
+        }
+        if not REQUIRED_MANAGEMENT_COLUMNS.issubset(slide_cols):
+            return False, '旧版结构'
+        category_table = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+            ('slideapp_slidecategory',),
+        ).fetchone()
+        if not category_table:
+            return False, '缺少分类表'
+        return True, ''
+    except sqlite3.Error:
+        return False, '无法读取'
+    finally:
+        try:
+            conn.close()
+        except UnboundLocalError:
+            pass
+
+
+def db_slide_count(path):
+    try:
+        with sqlite3.connect(path) as conn:
+            row = conn.execute('SELECT COUNT(*) FROM slideapp_slide').fetchone()
+        return row[0] if row else 0
+    except sqlite3.Error:
+        return 0
+
+
+def current_db_path():
+    return Path(settings.DATABASES['slides']['NAME']).resolve()
+
+
+def database_options():
+    current = current_db_path()
+    options = []
+    for path in discover_db_paths():
+        compatible, reason = db_compatibility(path)
+        options.append({
+            'path': str(path),
+            'name': display_db_name(path),
+            'count': db_slide_count(path) if compatible else None,
+            'compatible': compatible,
+            'reason': reason,
+            'active': path == current,
+        })
+    return options
+
+
+def apply_database(path):
+    resolved = str(Path(path).resolve())
+    os.environ['SLIDES_DB'] = resolved
+    settings.DATABASES['slides']['NAME'] = resolved
+    connections['slides'].settings_dict['NAME'] = resolved
+    connections['slides'].close()
+
 
 @login_required
 def upload_image(request):
@@ -98,7 +200,29 @@ def index(request):
         'total_categories': len(categories),
         'sort': sort,
         'sort_options': SORT_OPTIONS,
+        'database_options': database_options(),
+        'current_database': display_db_name(current_db_path()),
     })
+
+
+@login_required
+@require_POST
+def switch_database(request):
+    selected = request.POST.get('database', '').strip()
+    allowed = {str(path): path for path in discover_db_paths()}
+    target = allowed.get(selected)
+    if not target:
+        messages.error(request, '未找到这个数据库。')
+        return redirect('index')
+
+    compatible, reason = db_compatibility(target)
+    if not compatible:
+        messages.error(request, f'{display_db_name(target)} 不能用于管理主页：{reason}。')
+        return redirect('index')
+
+    apply_database(target)
+    messages.success(request, f'已切换到 {display_db_name(target)}。')
+    return redirect('index')
 
 @login_required
 def create_slide(request):

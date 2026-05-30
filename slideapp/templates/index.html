@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slides</title>
+    <title>EasySlides</title>
     <style>
         :root {
             --bg: #f6f2ea;
@@ -34,7 +34,7 @@
             background-size: 22px 22px;
         }
 
-        button, input { font: inherit; }
+        button, input, select { font: inherit; }
         button { cursor: pointer; }
         svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
@@ -77,6 +77,31 @@
             border: 1px solid var(--line);
             box-shadow: var(--card-shadow);
             padding: 6px;
+        }
+
+        .db-switch {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            box-shadow: var(--card-shadow);
+            padding: 6px;
+        }
+
+        .db-switch select {
+            width: 210px;
+            min-height: 34px;
+            border: 1px solid transparent;
+            background: transparent;
+            color: var(--ink);
+            padding: 6px 28px 6px 8px;
+            outline: none;
+        }
+
+        .db-switch select:focus {
+            border-color: var(--accent);
+            background: #fff;
         }
 
         .new-category input,
@@ -360,6 +385,27 @@
             background: rgba(255, 253, 248, 0.42);
         }
 
+        .messages {
+            display: grid;
+            gap: 8px;
+            margin: 0 0 14px;
+        }
+
+        .message {
+            border: 1px solid var(--line);
+            background: var(--panel);
+            color: var(--accent-strong);
+            padding: 9px 12px;
+            font-size: 13px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .message.error {
+            color: var(--danger);
+            border-color: rgba(155, 59, 47, 0.35);
+            background: rgba(155, 59, 47, 0.06);
+        }
+
         .logout-form { display: inline-flex; margin: 0; }
 
         .category-dialog {
@@ -422,6 +468,8 @@
             .action-group + .action-group { padding-left: 0; border-left: 0; }
             .new-category { flex: 1; }
             .new-category input { flex: 1; width: auto; }
+            .db-switch { width: 100%; }
+            .db-switch select { flex: 1; width: auto; }
             .lane { grid-template-columns: 1fr; }
             .lane-header { border-right: 0; border-bottom: 1px solid var(--line); }
             .lane-body { min-height: 172px; }
@@ -432,11 +480,22 @@
 <main class="page">
     <header class="topbar">
         <div>
-            <h1>Slides</h1>
-            <div class="stats">{{ total_slides }} slides · {{ total_categories }} categories</div>
+            <h1>EasySlides</h1>
+            <div class="stats">{{ total_slides }} slides · {{ total_categories }} categories · {{ current_database }}</div>
         </div>
         <div class="actions">
             <div class="action-group">
+                <form class="db-switch" method="post" action="{% url 'switch_database' %}">
+                    {% csrf_token %}
+                    <select name="database" aria-label="切换数据库">
+                        {% for db in database_options %}
+                            <option value="{{ db.path }}" {% if db.active %}selected{% endif %} {% if not db.compatible %}disabled{% endif %}>
+                                {{ db.name }}{% if db.compatible %} · {{ db.count }} 张{% else %} · {{ db.reason }}{% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <button class="btn" type="submit">切换</button>
+                </form>
                 <a class="btn nav-link" href="{% url 'public_slides' %}">
                     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18"/></svg>
                     公开幻灯片
@@ -462,6 +521,14 @@
             </div>
         </div>
     </header>
+
+    {% if messages %}
+        <div class="messages" role="status">
+            {% for message in messages %}
+                <div class="message {{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
 
     <nav class="sortbar" aria-label="排序">
         <span class="sort-label">排序</span>

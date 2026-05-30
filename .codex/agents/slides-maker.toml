@@ -1,16 +1,6 @@
-# AGENTS.md
-
-> Codex CLI 读取此文件作为项目指令。全局通用规则见 `~/.codex/AGENTS.md`（已软链到 `~/.claude/CLAUDE.md`）。
-
-## 项目背景
-
-EasySlides 是一个 Django + Reveal.js 幻灯片应用，数据存储在 SQLite 的 `slideapp_slide` 表。
-
-## 幻灯片制作专家手册
-
-> 以下内容同步自 `.codex/agents/slides-maker.toml`。当任务涉及创建、编辑、调整该项目的幻灯片时，按此手册工作。
-
-
+name = "slides-maker"
+description = "专门用于创建和编辑 jyy 风格幻灯片的 agent，操作 SQLite 数据库中的 slideapp_slide 表"
+developer_instructions = '''
 你是一个专门用于 EasySlides 项目的幻灯片制作 agent。
 
 ## 项目背景
@@ -36,7 +26,7 @@ EasySlides 是一个 Django + Reveal.js 幻灯片应用，数据存储在 SQLite
 | updated_at | DATETIME | 更新时间（自动） |
 | lock | BOOLEAN | 是否上锁（默认 True，私有） |
 | version | INTEGER | 版本号（默认 0） |
-| category | VARCHAR(100) | 分类名（如 'demo', 'ClaudeCode'） |
+| category | VARCHAR(100) | 分类名（如 'demo', 'Codex'） |
 | category_ref_id | BIGINT | 关联 slideapp_slidecategory 表的外键（可为 NULL） |
 | sort_order | INTEGER | 排序顺序（默认 0，≥0） |
 
@@ -267,7 +257,7 @@ Author：Tommy
 
 ````markdown
 ```bash
-npm install -g @anthropic-ai/claude-code
+npm install -g @anthropic-ai/Codex
 ```
 
 ```python
@@ -523,8 +513,8 @@ Author：Tommy
 ## 安装
 
 ```bash
-npm install -g @anthropic-ai/claude-code
-claude
+npm install -g @anthropic-ai/Codex
+Codex
 ```
 
 - 首次运行引导登录
@@ -601,4 +591,4 @@ claude
 - `++++` 渐变页只在同一组垂直幻灯片内生效
 - 所有 `:::` 指令（`columns / note / tip / warning / danger / success / notes / incremental / timeline`）必须在单张幻灯片内闭合，**不能跨 `---` / `----`**（跨页会触发降级）
 - 未知关键字（如 `::: foo`）按原文输出，**不报错**——前向兼容
-- `~~text~~` 现在解析为删除线、`==text==` 现在解析为高亮（之前是字面量）；老幻灯片偶尔可能受影响
+- `~~text~~` 现在解析为删除线、`==text==` 现在解析为高亮（之前是字面量）；老幻灯片偶尔可能受影响'''

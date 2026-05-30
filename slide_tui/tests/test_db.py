@@ -76,6 +76,55 @@ class ListSlidesTests(unittest.TestCase):
         self.assertEqual(rows[0].category, "")   # defaulted
         self.assertEqual(rows[0].sort_order, 0)  # defaulted
 
+    def test_category_ref_name_takes_precedence(self):
+        modern = Path(self.tmp.name) / "modern.sqlite3"
+        conn = sqlite3.connect(modern)
+        conn.execute(
+            "CREATE TABLE slideapp_slidecategory ("
+            "id INTEGER PRIMARY KEY, name TEXT, position INTEGER)"
+        )
+        conn.execute(
+            "CREATE TABLE slideapp_slide ("
+            "id INTEGER PRIMARY KEY, title TEXT, category TEXT, "
+            "category_ref_id INTEGER, lock INTEGER, version INTEGER, "
+            "sort_order INTEGER, content TEXT)"
+        )
+        conn.execute(
+            "INSERT INTO slideapp_slidecategory (id, name, position) "
+            "VALUES (1, '现代分类', 0)"
+        )
+        conn.execute(
+            "INSERT INTO slideapp_slide "
+            "(id, title, category, category_ref_id, lock, version, "
+            "sort_order, content) "
+            "VALUES (9, 'Modern', 'legacy', 1, 0, 1, 0, '')"
+        )
+        conn.commit()
+        conn.close()
+
+        rows = db.list_slides(modern)
+        self.assertEqual(rows[0].category, "现代分类")
+
+    def test_lists_persisted_categories(self):
+        modern = Path(self.tmp.name) / "categories.sqlite3"
+        conn = sqlite3.connect(modern)
+        conn.execute(
+            "CREATE TABLE slideapp_slidecategory ("
+            "id INTEGER PRIMARY KEY, name TEXT, position INTEGER)"
+        )
+        conn.executemany(
+            "INSERT INTO slideapp_slidecategory (id, name, position) VALUES (?, ?, ?)",
+            [(1, "B", 2), (2, "A", 1)],
+        )
+        conn.commit()
+        conn.close()
+
+        categories = db.list_categories(modern)
+        self.assertEqual([c.name for c in categories], ["A", "B"])
+
+    def test_missing_categories_table_returns_empty(self):
+        self.assertEqual(db.list_categories(self.db), [])
+
 
 class DiscoverDbsTests(unittest.TestCase):
     def test_finds_root_and_archive_default_first(self):

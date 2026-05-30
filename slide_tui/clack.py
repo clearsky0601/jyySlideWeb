@@ -32,6 +32,13 @@ S_RADIO_INACTIVE = "○"
 S_INFO = "●"
 SPINNER_FRAMES = ["◒", "◐", "◓", "◑"]
 
+_ESCAPE_FINAL_KEYS = {
+    "A": "up",
+    "B": "down",
+    "C": "right",
+    "D": "left",
+}
+
 # -- palette ---------------------------------------------------------------
 GUTTER = "grey42"
 ACCENT = "#e0875a"      # warm brand accent for the title
@@ -83,12 +90,7 @@ def read_key() -> str:
         tty.setraw(fd)
         ch = sys.stdin.read(1)
         if ch == "\x1b":
-            if _select.select([fd], [], [], 0.06)[0]:
-                seq = sys.stdin.read(2)
-                return {
-                    "[A": "up", "[B": "down", "[C": "right", "[D": "left",
-                }.get(seq, "esc")
-            return "esc"
+            return _read_escape_key(fd)
         if ch in ("\r", "\n"):
             return "enter"
         if ch == "\x03":
@@ -98,6 +100,29 @@ def read_key() -> str:
         return ch
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+
+def _read_escape_key(fd: int, timeout: float = 0.06) -> str:
+    """Decode common terminal escape sequences for navigation keys."""
+    seq = ""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline and len(seq) < 8:
+        remaining = max(0, deadline - time.monotonic())
+        if not _select.select([fd], [], [], remaining)[0]:
+            break
+        seq += sys.stdin.read(1)
+        key = _decode_escape_sequence(seq)
+        if key != "esc":
+            return key
+    return "esc"
+
+
+def _decode_escape_sequence(seq: str) -> str:
+    if seq.startswith("[") and seq[-1:] in _ESCAPE_FINAL_KEYS:
+        return _ESCAPE_FINAL_KEYS[seq[-1]]
+    if seq.startswith("O") and seq[-1:] in _ESCAPE_FINAL_KEYS:
+        return _ESCAPE_FINAL_KEYS[seq[-1]]
+    return "esc"
 
 
 # -- interactive windowed select -------------------------------------------
@@ -111,6 +136,7 @@ def select(
     footer: str = "",
     extra_keys: dict[str, str] | None = None,
     start_index: int = 0,
+    render_before_options: Callable[[], None] | None = None,
 ) -> tuple[str, object, int]:
     """Render a clack select prompt and return ``(action, value, index)``.
 
@@ -132,6 +158,8 @@ def select(
             head += f"   [{DIM}]{hint}[/]"
         console.print(head)
         bar()
+        if render_before_options is not None:
+            render_before_options()
 
         if not options:
             console.print(f"[{GUTTER}]{S_BAR}[/]  [{DIM}]（空）[/]")
@@ -160,9 +188,9 @@ def select(
         key = read_key()
         if key in ("q", "esc", "ctrl-c"):
             return ("quit", None, idx)
-        if key == "up" and options:
+        if key in ("up", "k") and options:
             idx = (idx - 1) % len(options)
-        elif key == "down" and options:
+        elif key in ("down", "j") and options:
             idx = (idx + 1) % len(options)
         elif key == "enter" and options:
             return ("select", options[idx], idx)

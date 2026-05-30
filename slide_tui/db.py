@@ -28,6 +28,12 @@ class SlideRow:
         return bool(self.lock)
 
 
+@dataclass(frozen=True)
+class CategoryRow:
+    name: str
+    position: int
+
+
 def display_name(path: Path) -> str:
     """Repo-relative name so e.g. ``db.sqlite3`` and ``archive/db.sqlite3`` differ."""
     p = Path(path)
@@ -73,6 +79,14 @@ def _table_columns(conn: sqlite3.Connection, table: str) -> set[str]:
     return {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
 
 
+def _table_exists(conn: sqlite3.Connection, table: str) -> bool:
+    row = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+        (table,),
+    ).fetchone()
+    return row is not None
+
+
 def list_slides(db: Path) -> list[SlideRow]:
     """Return all slides, tolerant of schema variations across sqlite files.
 
@@ -86,11 +100,35 @@ def list_slides(db: Path) -> list[SlideRow]:
         cols = _table_columns(conn, "slideapp_slide")
         if "id" not in cols:
             return []
+        has_categories = (
+            "category_ref_id" in cols
+            and _table_exists(conn, "slideapp_slidecategory")
+        )
         select = [c for c in _WANTED_COLUMNS if c in cols]
+        if has_categories:
+            select = [
+                (
+                    f"s.{c}"
+                    if c != "category"
+                    else "COALESCE(sc.name, s.category, '') AS category"
+                )
+                for c in select
+            ]
         order = "sort_order, id" if "sort_order" in cols else "id"
-        rows = conn.execute(
-            f"SELECT {', '.join(select)} FROM slideapp_slide ORDER BY {order}"
-        ).fetchall()
+        if has_categories:
+            order = f"s.{order.replace(', ', ', s.')}"
+            rows = conn.execute(
+                f"""
+                SELECT {', '.join(select)}
+                FROM slideapp_slide s
+                LEFT JOIN slideapp_slidecategory sc ON sc.id = s.category_ref_id
+                ORDER BY {order}
+                """
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                f"SELECT {', '.join(select)} FROM slideapp_slide ORDER BY {order}"
+            ).fetchall()
     except sqlite3.OperationalError:
         return []
     finally:
@@ -109,6 +147,34 @@ def list_slides(db: Path) -> list[SlideRow]:
             )
         )
     return result
+
+
+def list_categories(db: Path) -> list[CategoryRow]:
+    """Return persisted categories, tolerant of old databases without the table."""
+    conn = _connect(db)
+    try:
+        if not _table_exists(conn, "slideapp_slidecategory"):
+            return []
+        cols = _table_columns(conn, "slideapp_slidecategory")
+        if "name" not in cols:
+            return []
+        position_expr = "position" if "position" in cols else "0"
+        rows = conn.execute(
+            f"""
+            SELECT name, {position_expr} AS position
+            FROM slideapp_slidecategory
+            ORDER BY position, name
+            """
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        conn.close()
+    return [
+        CategoryRow(name=(row["name"] or ""), position=row["position"] or 0)
+        for row in rows
+        if row["name"]
+    ]
 
 
 def unlock_slide(db: Path, slide_id: int) -> None:

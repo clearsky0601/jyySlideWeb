@@ -1,5 +1,6 @@
 <div align="center">
-![tubiao](assets/tubiao.png)
+
+<img src="assets/tubiao.png" alt="EasySlides icon" width="160">
 
 # 🎨 EasySlides
 

@@ -15,7 +15,7 @@ def _protect_math(md: str):
 
     def _replace(m: re.Match) -> str:
         token = m.group(0)
-        key = f"\x00MATH{uuid.uuid4().hex}\x00"
+        key = f"⟦MATH{uuid.uuid4().hex}⟧"
         placeholders[key] = token
         return key
 

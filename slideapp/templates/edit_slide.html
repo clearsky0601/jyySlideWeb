@@ -182,6 +182,16 @@
     var slides = [];
     var lastSlideIndices = {h: -1, v: -1};
     var suppressUpdate = false;
+    // True once the preview iframe has loaded reveal.js + KaTeX. After that we
+    // update the preview in place instead of rewriting the whole document.
+    var iframeBootstrapped = false;
+
+    var KATEX_DELIMITERS = [
+        {left: '$$', right: '$$', display: true},
+        {left: '$', right: '$', display: false},
+        {left: '\\(', right: '\\)', display: false},
+        {left: '\\[', right: '\\]', display: true}
+    ];
 
     // --- Create CodeMirror editor ---
     const cm = new EditorView({
@@ -266,9 +276,42 @@
 
     function updateIframePreview(html_content) {
         var iframe = document.getElementById('preview-iframe');
-        if (iframe.contentWindow && iframe.contentWindow.Reveal && iframe.contentWindow.Reveal.getIndices) {
-            currentIndices = iframe.contentWindow.Reveal.getIndices();
+        var win = iframe.contentWindow;
+        if (win && win.Reveal && win.Reveal.getIndices) {
+            currentIndices = win.Reveal.getIndices();
         }
+
+        // Fast path: the iframe is already bootstrapped (reveal.js + KaTeX
+        // loaded once). Swap only the slides DOM and re-sync, instead of
+        // rewriting the whole document — which would force the browser to
+        // re-download & re-execute ~400KB of katex+reveal on every keystroke
+        // (the cause of Chrome stalling during fast typing).
+        if (iframeBootstrapped && win && win.Reveal && win.Reveal.isReady && win.Reveal.isReady()) {
+            try {
+                var parsed = new DOMParser().parseFromString(html_content, 'text/html');
+                var newSlides = parsed.querySelector('.slides');
+                var curSlides = iframe.contentDocument.querySelector('.slides');
+                if (newSlides && curSlides) {
+                    curSlides.innerHTML = newSlides.innerHTML;
+                    if (win.renderMathInElement) {
+                        win.renderMathInElement(curSlides, {
+                            delimiters: KATEX_DELIMITERS,
+                            throwOnError: false
+                        });
+                    }
+                    win.Reveal.sync();
+                    win.Reveal.slide(currentIndices.h, currentIndices.v);
+                    clearErrorMessage();
+                    navigateToSlide(lastSlideIndices.h, lastSlideIndices.v);
+                    return;
+                }
+            } catch (err) {
+                console.warn('In-place preview update failed; falling back to full reload', err);
+            }
+        }
+
+        // Slow path: full document (re)write. Runs on first load to bootstrap
+        // the scripts, and as a recovery fallback if the fast path failed.
         iframe.contentDocument.open();
         iframe.contentDocument.write(html_content);
         iframe.contentDocument.close();
@@ -276,6 +319,7 @@
         iframe.onload = function () {
             function restoreSlide() {
                 if (iframe.contentWindow.Reveal && iframe.contentWindow.Reveal.isReady()) {
+                    iframeBootstrapped = true;
                     iframe.contentWindow.Reveal.slide(currentIndices.h, currentIndices.v);
                     iframe.contentWindow.Reveal.on('slidechanged', onRevealSlideChanged);
                     navigateToSlide(lastSlideIndices.h, lastSlideIndices.v);

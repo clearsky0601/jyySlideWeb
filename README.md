@@ -54,45 +54,40 @@
 
 ## 🖥️ 功能演示
 
-### ⚡ 实时转换
-左边输入 Markdown，右边可以实时看到生成的效果。
+![codemirror-editor.gif](assets/codemirror-editor.gif)
 
-![realtime-converter.gif](staticfiles/img/realtime-converter.gif)
+![category-lanes.png](assets/category-lanes.png)
+
+### ⚡ 实时转换
+
+左边输入 Markdown，右边可以实时看到生成的效果。
 
 ### 🎯 预览自动跟随编辑位置
 右侧幻灯片预览会和左侧编辑位置实时对应，方便随手查看效果。
 
-![realtime-preview.gif](staticfiles/img/realtime-preview.gif)
-
 ### 💾 自动保存
 编辑时每分钟自动保存一次，关闭窗口、返回主页都会自动保存。
-
-![auto-save.png](staticfiles/img/auto-save.png)
 
 ### 🏷️ 自动读取标题
 幻灯片标题自动从正文第一个 `#` 标题提取。
 
-![auto-title.jpg](staticfiles/img/auto-title.jpg)
-
 ### 🖼️ 快捷插入图片
 直接拖拽或 `Ctrl+V` 粘贴图片到编辑器，图片自动上传到服务器并以 Markdown 格式插入。
 
-![auto-upload-img.gif](staticfiles/img/auto-upload-img.gif)
+
 
 ### 🧩 CodeMirror 6 源码模式编辑器
 高亮显示的 Markdown 源码视图替代普通文本框，提供专业流畅的编辑体验，对标题、粗体、链接、代码块、列表和分割线做视觉增强，同时保持 Markdown 语法可见。
 
-![codemirror-editor.gif](assets/codemirror-editor.gif)
+
 
 ### 🔓 公开分享幻灯片
 幻灯片默认需要密码访问，也可设为公开来分享，公开模式下为只读。
 
-![public-mode.png](staticfiles/img/public-mode.png)
-
 ### 🗂️ 分类与拖拽排序
 将幻灯片卡片分门别类整理（如 Inbox 和自定义分类），支持跨分类栏拖拽移动卡片或栏内调整顺序。
 
-![category-lanes.png](assets/category-lanes.png)
+
 
 <br>
 
@@ -292,11 +287,7 @@ daphne -p 10001 easy_slides.asgi:application
 
 每张幻灯片创建时默认上锁（左上角的锁）：
 
-![slide-lock.png](staticfiles/img/slide-lock.png)
-
 点击左上角的锁，幻灯片即变为公开。访问 `http://localhost:10001/public/` 可看到所有公开幻灯片（无需密码）。公开模式下幻灯片只读，直接进入全屏展示。
-
-![public-mode.png](staticfiles/img/public-mode.png)
 
 <br>
 
